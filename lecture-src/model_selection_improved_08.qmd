@@ -1,0 +1,1267 @@
+---
+title: "Model Selection and Forecasting"
+subtitle: "Week 8: Time Series Model Comparison"
+author: "Rex Sitti"
+institute: "Old Dominion University"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: https://www.odu.edu/content/dam/odu/logos/univ/png-72dpi/odu-secondarytm-blu.png
+    footer: "ECON 707/807: Econometrics II"
+  
+self-contained: true
+
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(out.width = '90%')
+par(mar = c(4.1, 4.1, 1.1, 4.1))
+set.seed(321)
+
+# Load required packages
+library("lubridate")
+library("forecast")
+library("scales")
+library("tseries")
+
+# Custom plotting function
+nice_plot <- function(...) {
+  plot(..., las = 1, bty = "n", 
+       col.axis = "gray30", col.lab = "gray30")
+}
+
+# RMSE function for model comparison
+rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2, na.rm = TRUE))
+}
+
+# MAPE function
+mape <- function(actual, predicted) {
+  mean(abs((actual - predicted) / actual) * 100, na.rm = TRUE)
+}
+```
+
+## Learning Objectives
+
+By the end of this session, you will be able to:
+
+1. **Review** key concepts: trends, AR models, and seasonality
+
+2. **Compare** model selection criteria (AIC, BIC, cross-validation)
+
+3. **Apply** systematic model selection procedures
+
+4. **Implement** k-fold cross-validation for time series
+
+5. **Forecast** with seasonal ARIMA models
+
+6. **Evaluate** forecast accuracy using multiple metrics
+
+## Today's Roadmap
+
+1. **Quick Review**: Trends, AR models, seasonality
+
+2. **Air Passengers Example**: Complete seasonal forecasting workflow
+
+3. **Model Selection Criteria**: AIC vs BIC vs cross-validation
+
+4. **k-Fold Validation**: Implementation for time series
+
+5. **Best Practices**: Systematic model selection workflow
+
+6. **Exam Review**: Key concepts and common pitfalls
+
+# Quick Review
+
+## Types of Trends
+
+**Deterministic Trend**:
+```r
+lm(y ~ t, data)              # Linear regression
+arima(y, xreg = time_index)  # ARIMA with external regressor
+```
+
+. . .
+
+**Stochastic Trend**:
+```r
+arima(y, c(1, 0, 0))  # AR(1)
+arima(y, c(0, 1, 0))  # Random walk (I(1))
+```
+
+. . .
+
+**Key distinction**: 
+- Deterministic: Shocks are temporary
+- Stochastic: Shocks are permanent
+
+## AR(1) Model Properties
+
+$$Y_t = \alpha + \beta Y_{t-1} + e_t$$
+
+. . .
+
+**Mean** (assuming stationarity, $|\beta| < 1$):
+$$E[Y_t] = \frac{\alpha}{1-\beta}$$
+
+. . .
+
+**Variance**:
+$$\text{Var}(Y_t) = \frac{\sigma^2}{1-\beta^2}$$
+
+. . .
+
+**Stationarity requires**: $|\beta| < 1$
+
+## AR(1) Simulation
+
+$$Y_t = 10 + 0.3Y_{t-1} + e_t$$
+
+```{r}
+#| code-fold: true
+set.seed(123)
+n <- 200
+shocks <- rnorm(n)
+y_ar1 <- numeric(n)
+y_ar1[1] <- shocks[1]
+
+for(i in 2:n) {
+  y_ar1[i] <- 10 + 0.3 * y_ar1[i-1] + shocks[i]
+}
+
+# Use last 100 observations after burn-in
+y_stationary <- y_ar1[101:200]
+
+nice_plot(y_stationary, type = "l", lwd = 2,
+          xlab = "Time", ylab = "Value",
+          main = sprintf("AR(1): Mean = %.1f, Variance = %.1f",
+                        mean(y_stationary), var(y_stationary)))
+
+abline(h = 10/(1-0.3), lty = 2, col = "red", lwd = 2)
+text(50, 10/(1-0.3), 
+     sprintf("Theoretical Mean = %.1f", 10/(1-0.3)), 
+     pos = 3, col = "red")
+```
+
+## Estimating the AR(1)
+
+```{r}
+# Estimate AR(1) on stationary portion
+model_ar1 <- auto.arima(y_stationary)
+model_ar1
+```
+
+. . .
+
+**Model selected**: ARIMA(`r model_ar1$arma[1]`, `r model_ar1$arma[6]`, `r model_ar1$arma[2]`)
+
+**Matches** our simulation! ✓
+
+## Deterministic vs Stochastic Trends
+
+:::: {.columns}
+
+::: {.column width="48%"}
+**Deterministic**: $Y_t = \alpha t + e_t$
+
+**Mean**: $E[Y_t] = \alpha t$
+
+**Variance**: $\text{Var}(Y_t) = \sigma^2$ (constant)
+
+**Treatment**: Detrend or include time in regression
+
+:::
+
+::: {.column width="48%"}
+**Stochastic**: $Y_t = \alpha + Y_{t-1} + e_t$
+
+**Mean**: $E[Y_t] = \alpha t$
+
+**Variance**: $\text{Var}(Y_t) = t\sigma^2$ (growing!)
+
+**Treatment**: Difference the series
+
+:::
+
+::::
+
+. . .
+
+**Key**: Both have linear mean, but variance differs!
+
+## Visual Comparison
+
+```{r}
+#| code-fold: true
+set.seed(456)
+n <- 100
+shocks <- rnorm(n, 0, 2)
+
+# Deterministic trend
+y_det <- (0:(n-1)) + shocks
+
+# Stochastic trend  
+y_stoch <- numeric(n)
+y_stoch[1] <- 0
+for(i in 2:n) {
+  y_stoch[i] <- 1 + y_stoch[i-1] + shocks[i]
+}
+
+nice_plot(1:n, y_det, col = "tomato", type = "l", lwd = 2,
+          xlab = "Time", ylab = "Value",
+          ylim = range(y_det, y_stoch),
+          main = "Deterministic vs Stochastic Trends")
+lines(1:n, y_stoch, col = "dodgerblue", lwd = 2)
+
+legend("topleft", 
+       legend = c("Deterministic: Y = t + ε", 
+                  "Stochastic: Y = 1 + Y(t-1) + ε"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+# Seasonality Review
+
+## Types of Seasonality
+
+**Deterministic Seasonality**:
+```r
+# Create seasonal dummies
+month_dummies <- model.matrix(~ factor(month) - 1)
+arima(y, xreg = month_dummies[,-1])
+```
+
+. . .
+
+**Stochastic Seasonality**:
+```r
+# Seasonal AR
+arima(y, seasonal = list(order = c(1, 0, 0), period = 12))
+
+# Seasonal differencing
+arima(y, seasonal = list(order = c(0, 1, 0), period = 12))
+```
+
+## Making Data Seasonal with `ts()`
+
+**Key function**: Convert to time series object
+
+```r
+# Monthly data starting June 2005
+y_ts <- ts(y, start = c(2005, 6), frequency = 12)
+
+# Quarterly data starting Q2 2010
+y_ts <- ts(y, start = c(2010, 2), frequency = 4)
+
+# Then use with auto.arima
+auto.arima(y_ts)  # Automatically detects seasonality!
+```
+
+. . .
+
+**Frequency values**:
+- 4 = Quarterly
+- 12 = Monthly  
+- 52 = Weekly
+- 365 = Daily
+
+## Three Example Series
+
+```{r}
+#| code-fold: true
+n <- 144
+time_idx <- 1:n
+shocks <- rnorm(n)
+
+# Series 1: Deterministic trend
+y1 <- time_idx + shocks
+
+# Series 2: Stationary AR(1)
+y2 <- numeric(n)
+y2[1] <- shocks[1] + 1
+for(i in 2:n) {
+  y2[i] <- 0.4 * y2[i-1] + shocks[i] + 1
+}
+
+# Series 3: Random walk with drift
+y3 <- numeric(n)
+y3[1] <- shocks[1] + 1
+for(i in 2:n) {
+  y3[i] <- y3[i-1] + shocks[i] + 1
+}
+
+nice_plot(time_idx, y1, col = "tomato", type = "l", lwd = 2,
+          ylim = range(y1, y2, y3),
+          xlab = "Time", ylab = "Value",
+          main = "Three Different Processes")
+lines(time_idx, y2, col = "dodgerblue", lwd = 2)
+lines(time_idx, y3, col = "mediumseagreen", lwd = 2)
+
+legend("topleft", bty = "n", lwd = 2,
+       col = c("tomato", "dodgerblue", "mediumseagreen"),
+       legend = c(expression(Y[t] == t + e[t]),
+                  expression(Y[t] == 1 + 0.4*Y[t-1] + e[t]),
+                  expression(Y[t] == 1 + Y[t-1] + e[t])))
+
+# Add expected values
+legend("left", bty = "n", pch = c(NA, 15, 15, 15),
+       col = c("black", "tomato", "dodgerblue", "mediumseagreen"),
+       legend = c(sprintf("E[Y(t=%d)]:", n),
+                  n, 
+                  round(1/(1-0.4), 2),
+                  n))
+```
+
+## ACF Diagnosis: Trend
+
+$$Y_t = t + e_t$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(y1, main = "ACF: Deterministic Trend")
+pacf(y1, main = "PACF: Deterministic Trend")
+```
+
+**Pattern**: Slow decay in ACF (looks non-stationary but isn't)
+
+## ACF Diagnosis: Stationary AR(1)
+
+$$Y_t = 1 + 0.4Y_{t-1} + e_t$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(y2, main = "ACF: Stationary AR(1)")
+pacf(y2, main = "PACF: Stationary AR(1)")
+```
+
+**Pattern**: ACF decays, PACF cuts off at lag 1 → AR(1)
+
+## ACF Diagnosis: Random Walk
+
+$$Y_t = 1 + Y_{t-1} + e_t$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(y3, main = "ACF: Random Walk")
+pacf(y3, main = "PACF: Random Walk")
+```
+
+**Pattern**: Very slow ACF decay → Unit root (non-stationary)
+
+## Statistical Tests
+
+```{r}
+# Test for unit root
+adf_trend <- adf.test(y1)
+adf_rw <- adf.test(y3)
+
+cat("Deterministic Trend ADF test:\n")
+cat("p-value =", round(adf_trend$p.value, 4), "\n")
+if(adf_trend$p.value < 0.05) cat("→ Stationary ✓\n\n")
+
+cat("Random Walk ADF test:\n")
+cat("p-value =", round(adf_rw$p.value, 4), "\n")
+if(adf_rw$p.value >= 0.05) cat("→ Non-stationary (unit root) ✓\n")
+```
+
+# Seasonal Patterns
+
+## Simulating Seasonal Data
+
+```{r}
+#| code-fold: true
+n <- 144
+time_idx <- 1:n
+month_idx <- rep(1:12, length.out = n)
+shocks <- rnorm(n)
+
+# Series 1: Deterministic seasonality
+seasonal_effect <- abs(month_idx - 6) - 3
+y_seas_det <- seasonal_effect + shocks
+
+# Series 2: Deterministic seasonality + trend
+y_seas_trend <- time_idx/12 + seasonal_effect + shocks
+
+# Series 3: Seasonal AR
+y_seas_ar <- numeric(n)
+y_seas_ar[1:12] <- shocks[1:12]
+for(i in 13:n) {
+  y_seas_ar[i] <- 0.4 * y_seas_ar[i-12] + shocks[i] + 1
+}
+
+# Series 4: Seasonal random walk
+y_seas_rw <- numeric(n)
+y_seas_rw[1:12] <- shocks[1:12]
+for(i in 13:n) {
+  y_seas_rw[i] <- y_seas_rw[i-12] + shocks[i] + 1
+}
+```
+
+## Visualizing Seasonal Patterns
+
+```{r}
+#| code-fold: true
+nice_plot(1:n, y_seas_det, lwd = 2,
+          col = alpha("tomato", 0.6), type = "l",
+          ylim = range(y_seas_det, y_seas_trend, y_seas_ar, y_seas_rw),
+          xlab = "Time", ylab = "Value",
+          main = "Four Seasonal Patterns")
+
+lines(1:n, y_seas_trend, lwd = 2, col = alpha("orchid", 0.6))
+lines(1:n, y_seas_ar, lwd = 2, col = alpha("dodgerblue", 0.6))
+lines(1:n, y_seas_rw, lwd = 2, col = alpha("mediumseagreen", 0.6))
+
+legend("topleft", bty = "n", lwd = 2,
+       col = c("tomato", "orchid", "dodgerblue", "mediumseagreen"),
+       legend = c(expression(Y[t] == alpha[S] + e[t]),
+                  expression(Y[t] == t/12 + alpha[S] + e[t]),
+                  expression(Y[t] == 0.4*Y[t-12] + e[t]),
+                  expression(Y[t] == Y[t-12] + e[t])))
+```
+
+## ACF: Deterministic Seasonality
+
+$$Y_t = \alpha_S + e_t$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(y_seas_det, main = "Deterministic Seasonal")
+pacf(y_seas_det, main = "Deterministic Seasonal")
+```
+
+**Pattern**: Spikes at seasonal lags (12, 24, 36...)
+
+## ACF: Seasonal + Trend
+
+$$Y_t = t/12 + \alpha_S + e_t$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(y_seas_trend, main = "Seasonal + Trend")
+pacf(y_seas_trend, main = "Seasonal + Trend")
+```
+
+**Pattern**: Slow decay + seasonal spikes
+
+## ACF: Seasonal AR
+
+$$Y_t = 1 + 0.4Y_{t-12} + e_t$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(y_seas_ar, main = "Seasonal AR(1)")
+pacf(y_seas_ar, main = "Seasonal AR(1)")
+```
+
+**Pattern**: Decaying seasonal spikes
+
+## ACF: Seasonal Random Walk
+
+$$Y_t = 1 + Y_{t-12} + e_t$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(y_seas_rw, main = "Seasonal Random Walk")
+pacf(y_seas_rw, main = "Seasonal Random Walk")
+```
+
+**Pattern**: Very persistent seasonal spikes → Need seasonal differencing
+
+## Differencing Seasonal Random Walk
+
+**First difference**: $\Delta Y_t = Y_t - Y_{t-1}$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+plot(diff(y_seas_rw), type = "l", main = "First Difference",
+     ylab = expression(Delta*Y[t]))
+acf(diff(y_seas_rw), main = "ACF: First Difference")
+```
+
+Still shows seasonal pattern!
+
+## Seasonal Differencing
+
+**Seasonal difference**: $\Delta_{12} Y_t = Y_t - Y_{t-12}$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+plot(diff(y_seas_rw, lag = 12), type = "l", 
+     main = "Seasonal Difference",
+     ylab = expression(Delta[12]*Y[t]))
+acf(diff(y_seas_rw, lag = 12), main = "ACF: Seasonal Difference")
+```
+
+Much better!
+
+## Double Differencing
+
+$$\Delta\Delta_{12}Y_t = \Delta(Y_t - Y_{t-12})$$
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+double_diff <- diff(diff(y_seas_rw, lag = 12))
+plot(double_diff, type = "l", 
+     main = "Double Differencing",
+     ylab = expression(Delta*Delta[12]*Y[t]))
+acf(double_diff, main = "ACF: Double Differencing")
+```
+
+Most stationary, but may be over-differenced
+
+## Seasonality Diagnostic Checklist
+
+**Is the series stationary?**
+
+. . .
+
+**Look at variance**:
+- Increasing → Stochastic (difference across period)
+- Constant → Check further
+
+. . .
+
+**If variance constant**:
+- Trend visible → Deterministic (trend + FE)
+- ACF/PACF cyclic → Deterministic (FE only)
+- ACF/PACF spikes at seasonal lags → Stochastic AR
+
+. . .
+
+**Golden rule**: When in doubt, check ACF at seasonal lags!
+
+# Air Passengers Example
+
+## The Classic Example
+
+```{r}
+data("AirPassengers")
+air <- log(AirPassengers)  # Take logs for growth rates
+
+nice_plot(air, ylab = "log(Passengers)", lwd = 2,
+          main = "Monthly Airline Passengers (1949-1960)")
+abline(v = 1960, lty = 2, col = "gray50", lwd = 2)
+text(1960, max(air), "Forecast →", pos = 4, col = "gray50")
+```
+
+**Observations**: Clear trend + seasonal pattern + increasing variance
+
+## First Difference
+
+```{r}
+#| code-fold: true
+nice_plot(diff(air), 
+          ylab = expression(Delta*log(Passengers)),
+          main = "Month-over-Month Growth Rate",
+          lwd = 1.5)
+abline(h = 0, lty = 2, col = "red")
+```
+
+Removes trend but seasonal pattern remains
+
+## Seasonal Difference (lag 12)
+
+```{r}
+#| code-fold: true
+nice_plot(diff(air, lag = 12), 
+          ylab = expression(Delta[12]*log(Passengers)),
+          main = "Year-over-Year Growth Rate",
+          lwd = 1.5)
+abline(h = 0, lty = 2, col = "red")
+```
+
+Removes both trend and seasonality!
+
+## Double Differencing
+
+```{r}
+#| code-fold: true
+nice_plot(diff(diff(air, lag = 12)), 
+          ylab = expression(Delta*Delta[12]*log(Passengers)),
+          main = "Differenced Year-over-Year Growth",
+          lwd = 1.5)
+abline(h = 0, lty = 2, col = "red")
+```
+
+Most stationary - this is what we'll model
+
+## ACF and PACF
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+double_diff_air <- diff(diff(air, lag = 12))
+acf(double_diff_air, main = "ACF")
+pacf(double_diff_air, main = "PACF")
+```
+
+**Pattern**: Some spikes but mostly white noise → Simple model
+
+## Train-Test Split
+
+```{r}
+# Hold out last 24 months for validation
+train_length <- length(air) - 24
+air_train <- ts(air[1:train_length],
+               start = c(1949, 1), frequency = 12)
+air_test <- air[(train_length + 1):length(air)]
+
+cat("Training period:", start(air_train), "to", end(air_train), "\n")
+cat("Testing period: 24 months\n")
+```
+
+## Automatic Model Selection
+
+```{r}
+# Let auto.arima choose the best model
+model_auto <- auto.arima(air_train)
+model_auto
+```
+
+. . .
+
+**Selected**: SARIMA(`r model_auto$arma[1]`, `r model_auto$arma[6]`, `r model_auto$arma[2]`)(`r model_auto$arma[3]`, `r model_auto$arma[7]`, `r model_auto$arma[4]`)[12]
+
+## Model Diagnostics
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(model_auto$residuals, main = "Residual ACF")
+pacf(model_auto$residuals, main = "Residual PACF")
+```
+
+**Good**: Residuals look like white noise!
+
+## Forecasting
+
+```{r}
+#| code-fold: true
+# Generate 24-month forecast
+forecast_result <- predict(model_auto, n.ahead = 24)
+
+# Create plot
+nice_plot(1:length(air), rep(0, length(air)),
+          type = "n", xlab = "Time (months from start)",
+          ylab = "Passengers (1000s)",
+          ylim = exp(range(forecast_result$pred + 1.645*forecast_result$se, 
+                          air_train)),
+          main = "24-Month Forecast vs Actual")
+
+# Actual data
+lines(1:length(air), exp(air), col = "tomato", lwd = 2)
+lines(1:train_length, exp(air_train), lwd = 2)
+
+# Forecast
+forecast_times <- (train_length + 1):(train_length + 24)
+polygon(x = c(forecast_times, rev(forecast_times)),
+        y = c(exp(forecast_result$pred + 1.645*forecast_result$se),
+              rev(exp(forecast_result$pred - 1.645*forecast_result$se))),
+        col = alpha("dodgerblue", 0.3), border = NA)
+
+lines(forecast_times, exp(forecast_result$pred),
+      col = "dodgerblue", lwd = 2, lty = 2)
+
+abline(v = train_length, lty = 2, col = "gray50")
+
+legend("topleft",
+       legend = c("Actual", "Training", "Forecast", "90% PI"),
+       col = c("tomato", "black", "dodgerblue", "dodgerblue"),
+       lty = c(1, 1, 2, NA),
+       lwd = c(2, 2, 2, NA),
+       pch = c(NA, NA, NA, 15),
+       pt.cex = c(NA, NA, NA, 2),
+       bty = "n")
+```
+
+## Forecast Accuracy
+
+```{r}
+# Calculate forecast errors
+forecast_values <- exp(forecast_result$pred)
+actual_values <- exp(air_test)
+
+# Compute metrics
+rmse_val <- rmse(actual_values, forecast_values)
+mape_val <- mape(actual_values, forecast_values)
+
+# Display
+metrics <- data.frame(
+  Metric = c("RMSE", "MAPE", "Mean Actual", "Mean Forecast"),
+  Value = c(
+    sprintf("%.2f (1000s)", rmse_val),
+    sprintf("%.2f%%", mape_val),
+    sprintf("%.2f (1000s)", mean(actual_values)),
+    sprintf("%.2f (1000s)", mean(forecast_values))
+  )
+)
+
+knitr::kable(metrics, align = c("l", "r"),
+             caption = "Forecast Performance Metrics")
+```
+
+**Interpretation**: Average forecast error of `r sprintf("%.1f%%", mape_val)`
+
+# Model Selection Criteria
+
+## The Model Selection Problem
+
+**Question**: Which model should we choose?
+
+. . .
+
+**Options**:
+1. Economic/subject-matter theory
+2. In-sample fit measures (R², adjusted R²)
+3. Information criteria (AIC, BIC)
+4. Out-of-sample validation (k-fold CV)
+5. Hypothesis testing (sequential t/F tests)
+
+. . .
+
+**Reality**: Usually combine multiple approaches!
+
+## AIC vs BIC: The Formula
+
+**Akaike Information Criterion (AIC)**:
+$$\text{AIC} = -2\log(L) + 2k$$
+
+. . .
+
+**Bayesian Information Criterion (BIC)**:
+$$\text{BIC} = -2\log(L) + k\log(n)$$
+
+where:
+- $L$ = Maximum likelihood
+- $k$ = Number of parameters
+- $n$ = Sample size
+
+. . .
+
+**Key**: Both penalize complexity, but BIC penalizes more (for n > 8)
+
+## AIC vs BIC: The Philosophy
+
+**AIC**:
+- Minimizes expected forecast error
+- Asymptotically equivalent to leave-one-out cross-validation
+- Tends to select more complex models
+- Better for prediction
+
+. . .
+
+**BIC**:
+- Selects model most likely to be "true"
+- Asymptotically consistent
+- Tends to select simpler models  
+- Better for inference/interpretation
+
+. . .
+
+**Both**: Lower is better!
+
+## Penalty Comparison
+
+```{r}
+#| code-fold: true
+# Show penalty for different sample sizes
+sample_sizes <- c(50, 100, 200, 500, 1000)
+params <- 1:20
+
+penalties <- expand.grid(n = sample_sizes, k = params)
+penalties$AIC_penalty <- 2 * penalties$k
+penalties$BIC_penalty <- penalties$k * log(penalties$n)
+
+nice_plot(params, 2*params, type = "n",
+          xlab = "Number of Parameters (k)",
+          ylab = "Penalty",
+          ylim = c(0, max(penalties$BIC_penalty)),
+          main = "AIC vs BIC Penalties")
+
+# AIC (constant)
+lines(params, 2*params, col = "tomato", lwd = 3)
+
+# BIC for different n
+colors <- rainbow(length(sample_sizes))
+for(i in seq_along(sample_sizes)) {
+  n <- sample_sizes[i]
+  lines(params, params * log(n), col = colors[i], lwd = 2)
+}
+
+legend("topleft",
+       legend = c("AIC (all n)", 
+                  paste0("BIC (n=", sample_sizes, ")")),
+       col = c("tomato", colors),
+       lwd = c(3, rep(2, length(sample_sizes))),
+       bty = "n")
+```
+
+**Observation**: BIC penalty increases with sample size!
+
+## Practical Example: AR Order Selection
+
+```{r}
+# Simulate AR(2) process
+set.seed(789)
+n <- 200
+y_ar2 <- arima.sim(list(ar = c(0.7, -0.3)), n = n)
+
+# Fit models with different orders
+models <- list()
+for(p in 0:6) {
+  models[[p+1]] <- arima(y_ar2, order = c(p, 0, 0))
+}
+
+# Extract AIC and BIC
+comparison <- data.frame(
+  Order = 0:6,
+  AIC = sapply(models, AIC),
+  BIC = sapply(models, BIC)
+)
+
+comparison$AIC <- round(comparison$AIC, 2)
+comparison$BIC <- round(comparison$BIC, 2)
+
+knitr::kable(comparison, align = c("c", "r", "r"),
+             caption = "AR Order Selection (True model: AR(2))")
+```
+
+**Result**: Both select AR(`r which.min(comparison$AIC) - 1`) based on AIC, AR(`r which.min(comparison$BIC) - 1`) based on BIC
+
+## Visualization of Criteria
+
+```{r}
+#| code-fold: true
+nice_plot(comparison$Order, comparison$AIC, 
+          type = "b", pch = 19, col = "tomato", lwd = 2,
+          xlab = "AR Order", ylab = "Information Criterion",
+          ylim = range(comparison$AIC, comparison$BIC),
+          main = "Model Selection: AIC vs BIC")
+
+lines(comparison$Order, comparison$BIC, 
+      type = "b", pch = 17, col = "dodgerblue", lwd = 2)
+
+# Mark minima
+points(which.min(comparison$AIC) - 1, min(comparison$AIC),
+       pch = 19, col = "tomato", cex = 2)
+points(which.min(comparison$BIC) - 1, min(comparison$BIC),
+       pch = 17, col = "dodgerblue", cex = 2)
+
+legend("topright",
+       legend = c("AIC", "BIC", "Minimum"),
+       col = c("tomato", "dodgerblue", "black"),
+       pch = c(19, 17, NA),
+       lty = c(1, 1, NA),
+       lwd = c(2, 2, NA),
+       pt.cex = c(1, 1, NA),
+       bty = "n")
+
+# Add true model line
+abline(v = 2, lty = 2, col = "mediumseagreen", lwd = 2)
+text(2, max(comparison$BIC), "True: AR(2)", 
+     pos = 4, col = "mediumseagreen")
+```
+
+# k-Fold Cross-Validation
+
+## Why Cross-Validation?
+
+**Problem with in-sample criteria**:
+- AIC/BIC still use training data
+- May overfit to training period
+- Don't directly measure forecast performance
+
+. . .
+
+**Solution**: k-fold cross-validation
+- Actually test forecast accuracy
+- More realistic evaluation
+- Computationally expensive
+
+## Time Series Cross-Validation
+
+**Standard k-fold** (❌ for time series):
+![](https://miro.medium.com/max/1400/1*AAwIlHM8TpAVe4l2FihNUQ.png){width=60%}
+
+. . .
+
+**Time series k-fold** (✓ respects time order):
+![](https://www.brendanberthold.com/post/2021-02-27-k-fold-cross-validation-for-time-series-in-r-applications-to-var-models/img/kfoldCV.png){width=60%}
+
+## k-Fold CV Procedure
+
+**Example**: 10 years of monthly data (120 observations)
+
+. . .
+
+**Rolling window approach**:
+
+1. Fit years 1-5 (60 obs) → Forecast year 6 (12 obs)
+2. Fit years 1-6 (72 obs) → Forecast year 7 (12 obs)
+3. Fit years 1-7 (84 obs) → Forecast year 8 (12 obs)
+4. Fit years 1-8 (96 obs) → Forecast year 9 (12 obs)
+5. Fit years 1-9 (108 obs) → Forecast year 10 (12 obs)
+
+. . .
+
+**Evaluation**: Average RMSE/MAPE across all folds
+
+## Implementing k-Fold CV
+
+```{r}
+# Function to perform time series CV
+ts_cv <- function(y, model_func, h = 12, window = 60) {
+  n <- length(y)
+  n_folds <- floor((n - window) / h)
+  errors <- numeric(n_folds)
+  
+  for(i in 1:n_folds) {
+    # Training window
+    train_end <- window + (i-1)*h
+    y_train <- y[1:train_end]
+    
+    # Test period  
+    test_start <- train_end + 1
+    test_end <- min(train_end + h, n)
+    y_test <- y[test_start:test_end]
+    
+    # Fit and forecast
+    tryCatch({
+      model <- model_func(y_train)
+      forecast_vals <- forecast(model, h = h)$mean[1:length(y_test)]
+      
+      # Calculate RMSE for this fold
+      errors[i] <- rmse(y_test, forecast_vals)
+    }, error = function(e) {
+      # If model fails, use large error
+      errors[i] <<- NA
+    })
+  }
+  
+  return(errors)
+}
+```
+
+## CV Example: Air Passengers
+
+```{r}
+# Compare two models using CV
+air_numeric <- as.numeric(air)
+
+# Model 1: auto.arima
+# Wrap in function that creates proper ts object
+cv_auto <- ts_cv(air_numeric, 
+                 function(y) auto.arima(ts(y, frequency = 12)),
+                 h = 12, window = 60)
+
+# Model 2: Fixed SARIMA(0,1,1)(0,1,1)[12]
+cv_fixed <- ts_cv(air_numeric,
+                  function(y) arima(ts(y, frequency = 12), 
+                                   order = c(0,1,1),
+                                   seasonal = list(order = c(0,1,1), 
+                                                  period = 12)),
+                  h = 12, window = 60)
+```
+
+## CV Results
+
+```{r}
+cv_comparison <- data.frame(
+  Fold = 1:length(cv_auto),
+  `Auto ARIMA` = round(cv_auto, 4),
+  `Fixed SARIMA` = round(cv_fixed, 4),
+  check.names = FALSE
+)
+
+knitr::kable(cv_comparison, align = c("c", "r", "r"),
+             caption = "RMSE by Fold")
+```
+
+## CV Summary
+
+```{r}
+cv_summary <- data.frame(
+  Model = c("Auto ARIMA", "Fixed SARIMA(0,1,1)(0,1,1)[12]"),
+  `Mean RMSE` = c(mean(cv_auto), mean(cv_fixed)),
+  `SD RMSE` = c(sd(cv_auto), sd(cv_fixed)),
+  check.names = FALSE
+)
+
+cv_summary[,2:3] <- round(cv_summary[,2:3], 4)
+
+knitr::kable(cv_summary, align = c("l", "r", "r"),
+             caption = "Cross-Validation Summary")
+```
+
+. . .
+
+**Winner**: `r cv_summary$Model[which.min(cv_summary$'Mean RMSE')]`
+
+## Visualizing CV Performance
+
+```{r}
+#| code-fold: true
+nice_plot(1:length(cv_auto), cv_auto,
+          type = "b", pch = 19, col = "tomato", lwd = 2,
+          xlab = "Fold", ylab = "RMSE",
+          ylim = range(cv_auto, cv_fixed),
+          main = "Cross-Validation: Forecast Accuracy by Fold")
+
+lines(1:length(cv_fixed), cv_fixed,
+      type = "b", pch = 17, col = "dodgerblue", lwd = 2)
+
+# Add means
+abline(h = mean(cv_auto), lty = 2, col = "tomato")
+abline(h = mean(cv_fixed), lty = 2, col = "dodgerblue")
+
+legend("topright",
+       legend = c("Auto ARIMA", "Fixed SARIMA", 
+                  "Mean RMSE"),
+       col = c("tomato", "dodgerblue", "gray50"),
+       pch = c(19, 17, NA),
+       lty = c(1, 1, 2),
+       lwd = c(2, 2, 1),
+       bty = "n")
+```
+
+# Model Selection Workflow
+
+## Systematic Model Selection Process
+
+**Step 1**: Visualize and explore
+- Plot the series
+- Check for trends, seasonality, structural breaks
+- Look at ACF/PACF
+
+. . .
+
+**Step 2**: Transform if needed
+- Difference for stochastic trends
+- Log transform for variance stabilization
+- Seasonal differencing for seasonal unit roots
+
+. . .
+
+**Step 3**: Identify candidate models
+- Use ACF/PACF patterns
+- Consider economic theory
+- Include simple benchmarks
+
+## Workflow (continued)
+
+**Step 4**: Estimate and compare
+- Fit all candidate models
+- Compare AIC/BIC
+- Check residual diagnostics
+
+. . .
+
+**Step 5**: Cross-validate
+- Implement time series CV
+- Compare forecast accuracy
+- Check stability across folds
+
+. . .
+
+**Step 6**: Select and forecast
+- Choose based on multiple criteria
+- Generate forecasts with intervals
+- Document your choice
+
+## Model Selection Checklist
+
+**Data preparation**:
+- [ ] Plotted the series?
+- [ ] Checked for trends and seasonality?
+- [ ] Tested for stationarity?
+- [ ] Applied necessary transformations?
+
+. . .
+
+**Model specification**:
+- [ ] Examined ACF/PACF?
+- [ ] Identified candidate models?
+- [ ] Included benchmarks (naive, mean, etc.)?
+
+. . .
+
+**Evaluation**:
+- [ ] Compared AIC/BIC?
+- [ ] Checked residual diagnostics?
+- [ ] Performed cross-validation?
+- [ ] Documented decision rationale?
+
+## Common Pitfalls to Avoid
+
+**❌ Don't**:
+- Rely solely on `auto.arima()` without understanding
+- Ignore residual diagnostics
+- Overfit with too many parameters
+- Use future information in training
+- Forget to check forecast intervals
+
+. . .
+
+**✓ Do**:
+- Compare multiple specifications
+- Validate on holdout data
+- Check if residuals are white noise
+- Use appropriate standard errors
+- Document your model selection process
+
+# Summary and Review
+
+## Key Takeaways
+
+**Model types**:
+- Deterministic vs stochastic trends
+- Deterministic vs stochastic seasonality
+- AR, MA, ARMA, ARIMA, SARIMA
+
+. . .
+
+**Selection criteria**:
+- AIC: Better for prediction, selects larger models
+- BIC: Better for inference, selects smaller models
+- CV: Direct forecast evaluation, computationally expensive
+
+. . .
+
+**Best practice**: Use multiple criteria and compare!
+
+## Exam Review Topics
+
+**Core concepts** (will definitely appear):
+- Stationarity and unit root testing
+- ACF/PACF interpretation
+- AR and MA model properties
+- Seasonal patterns and SARIMA
+
+. . .
+
+**Applied skills** (expect to demonstrate):
+- Model specification from plots
+- Choosing appropriate transformations
+- Comparing models using AIC/BIC
+- Interpreting forecast intervals
+- Residual diagnostics
+
+## Practice Problems
+
+**Problem 1**: Model Identification
+- Given ACF/PACF plots, identify appropriate model
+- Specify order of AR, MA, differencing, seasonal components
+
+. . .
+
+**Problem 2**: Forecast Comparison
+- Fit multiple models to a dataset
+- Compare using AIC, BIC, and RMSE
+- Select best model with justification
+
+. . .
+
+**Problem 3**: Air Passengers Redux
+- Implement different SARIMA specifications
+- Perform k-fold cross-validation
+- Recommend final forecasting model
+
+## Exam Preparation Tips
+
+**What to review**:
+- All slide decks (especially ARMA/ARIMA and Seasonality)
+- Practice interpreting ACF/PACF
+- Understand when to difference vs detrend
+- Know AIC vs BIC trade-offs
+
+. . .
+
+**How to prepare**:
+- Work through Air Passengers example from scratch
+- Practice model specification on new datasets
+- Simulate different DGPs and estimate them
+- Understand residual diagnostic plots
+
+. . .
+
+**Common mistakes to avoid**:
+- Confusing AR and MA patterns
+- Forgetting to check stationarity first
+- Over-differencing
+- Ignoring seasonal components
+
+## Additional Resources
+
+**Textbooks**:
+- [Forecasting: Principles and Practice](https://otexts.com/fpp3/) - Ch 9-10
+- [Time Series Analysis](https://online.stat.psu.edu/stat510/) - Penn State
+
+**Online Resources**:
+- [Cross-Validation for Time Series](https://robjhyndman.com/hyndsight/tscv/)
+- [Model Selection in R](https://stats.stackexchange.com/questions/577/is-there-any-reason-to-prefer-the-aic-or-bic-over-the-other)
+
+**R Documentation**:
+- `?auto.arima` - Automatic model selection
+- `?AIC` and `?BIC` - Information criteria
+- `?tsCV` - Time series cross-validation
+
+## Next Steps
+
+**After this class**:
+1. Review all time series topics covered
+2. Practice model selection on new datasets
+3. Prepare for exam (see study guide)
+4. Start thinking about final projects
+
+. . .
+
+**For the exam**:
+- Bring calculator and formula sheet
+- Know how to interpret diagnostic plots
+- Understand the conceptual differences between methods
+- Be able to justify model choices
+
+## Questions?
+
+**Office hours**: [Your schedule]
+
+**Email**: [Your email]
+
+. . .
+
+**Key reminders**:
+- AIC for prediction, BIC for parsimony
+- Always check residuals
+- Cross-validate when possible
+- Multiple criteria > single criterion
+- Document your decisions!
+
+. . .
+
+**Good luck on the exam!** 📊

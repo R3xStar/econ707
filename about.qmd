@@ -1,55 +1,157 @@
 ---
-title: "Course Objectives"
-format: html
-editor: visual
+title: "Course Information"
 ---
 
-## Course Learning Objectives (CLOs)
+## Course Description
 
--   CLO 1: **Formulate** economic research questions and testable hypotheses that can be examined using publicly available data
+The objective of this course is to introduce students to time series analysis and
+forecasting. The goal is for students to obtain hands-on experience using financial,
+economic, business, crime, traffic, and other data to construct and evaluate forecasts.
+The course introduces several techniques for applied time series analysis and forecasting.
+Students will use R to enhance their computer skills.
 
--   CLO 2: **Acquire**, **manage**, and **prepare** economic data by applying programming techniques in R, including data extraction from APIs and other official sources.
+This is an accelerated eight-week section covering the same material as the standard
+sixteen-week course.
 
--   CLO 3: **Apply** descriptive statistics, probability concepts, and sampling methods to summarize, visualize, and interpret economic data.
+**Prerequisite:** ECON 706 or equivalent.
 
--   CLO 4: **Conduct** hypothesis testing and interval estimation to draw valid inferences from economic and financial data.
+## Course Objectives
 
--   CLO 5: **Utilize** R and RStudio to implement statistical techniques and effectively communicate results through reproducible code, visualizations, and written analysis.
+At the end of this course, students will be able to:
 
-## Textbooks and Materials
+1. Understand and apply common statistical methods used in business and economic forecasting
+2. Explain, identify, and extract components of a time series
+3. Collect, organize, visualize, and analyze time series data
+4. Interpret and critique forecasts
 
-The required textbooks are an integral part of the class. Students should expect to read the textbooks prior to class and to be prepared to answer discussion questions from the textbook. These textbooks provide a foundation upon which the course is built and students will succeed if they take the time to read and review the material in the textbooks.
+## Course Format
 
-[**These textbooks are free.**]{.underline}
+There are no live class meetings. The course is organized into eight Canvas modules, one
+per week. Each module opens at the start of its week and contains the assigned reading,
+recorded lecture videos, annotated R scripts, and the graded work for that week.
 
-As this course focuses on the learning and application of statistical techniques, a computer with R and R Studio installed is necessary. You will need access to a laptop, tablet, or other computing device to complete the assignments and exams.
-
-**You may also use R Studio Cloud instead of a locally installed version of R.**
-
-You can create a free [R-Studio cloud](https://posit.co/download/rstudio-desktop/) if you do not want to use a locally installed version of R and R Studio.
-
-All other course materials are on Canvas or can be accessed through Canvas. You are required to know how to use Canvas to access and submit assignments, quizzes, and examinations. You should also be comfortable using ODU email to communicate.
+Unless stated otherwise, all module work is due at **11:59 pm ET on the Sunday that closes
+the module week**. Modules remain open for review after their due dates, so you may work
+ahead, but you may not fall behind.
 
 ## Required Texts
 
-The following textbooks are available for free.
+None. All required readings are freely available online and linked in Canvas.
 
-Please select the links provided for each to access the textbooks.   
+## Recommended Texts
 
-Barbara Illowsky and Susan Dean. [*Introductory Statistics 2e*](https://openstax.org/books/introductory-statistics-2e/pages/1-introduction)*.* OpenStax.
+- Francis X. Diebold, *Forecasting in Economics, Business, Finance and Beyond* —
+  [PDF](https://www.sas.upenn.edu/~fdiebold/Teaching221/Forecasting.pdf)
+- Hyndman, R.J., and Athanasopoulos, G. (2021). *Forecasting: Principles and Practice*,
+  3rd edition. OTexts: Melbourne, Australia — [otexts.com/fpp3](https://otexts.com/fpp3/)
+- Wooldridge, Jeffrey M. *Introductory Econometrics: A Modern Approach*, 7th ed.
+  (ISBN 9781337558860)
 
-Christoph Hanck, Martin Arnold, Alexander Gerber,and Martin Schmelzer. (2025). [*Introduction to Econometrics with R*](https://www.econometrics-with-r.org)*.*
+## Reference Texts
 
-Rafael Irizarry. (2025). [Introduction to Data Science: Data Wrangling and Visualization with R](https://rafalab.dfci.harvard.edu/dsbook-part-1/).
+- Gonzalez-Rivera, Gloria (2012). *Forecasting for Economics and Business*. Pearson.
+- Hansen, Bruce — [course materials](https://www.ssc.wisc.edu/~bhansen/390/2010/)
+- [*A Little Book of R for Time Series*](https://a-little-book-of-r-for-time-series.readthedocs.io/en/latest/src/timeseries.html)
 
-Hadley Wickham, Mine Cetinkaya-Rundel, and Garrett Grolemund. (2025) [R for Data Science](https://r4ds.hadley.nz/).
+## Software
 
-## Optional Materials
+As this course focuses on the learning and application of time series techniques, a computer
+or laptop with R and R Studio installed is required for module work, assignments, and exams.
+You will also install a number of open-source packages that facilitate economic analysis in R.
 
-David R. Anderson, Dennis J. Sweeney, Thomas A. Williams, Jeffrey D. Camm, and James J. Cochran. *Statistics for Business and Economics 14th Edition*. Earlier editions will suffice.
+You may use Posit Cloud instead of a locally installed version of R.
 
-Angrist, J.D. & Pischke, Jorn-Steffen. (2013). *Mostly Harmless Econometrics: An Empiricist’s Companion*. Content Technologies Inc.
+You must be able to render R Markdown or Quarto documents to PDF or HTML for submission.
+Technology problems are not grounds for an extension in an eight-week course — submit early.
 
-Baruffa, O. (2025). [*The Big Book of R*](https://www.bigbookofr.com/)
+## Grading
 
-Kennedy, P. (2003). *A Guide to Econometrics*. MIT Press.
+| Assignment | Points | Due (11:59 pm ET) |
+|:-----------|-------:|:------------------|
+| HW 1 | 50 | End of Week 1 |
+| HW 2 | 50 | End of Week 2 |
+| HW 3 | 50 | End of Week 3 |
+| HW 4 | 50 | End of Week 5 |
+| HW 5 | 50 | End of Week 6 |
+| Project Pitch | 50 | End of Week 3 |
+| Project Data | 50 | End of Week 5 |
+| Final Project | 200 | End of Week 7 |
+| Midterm Exam | 200 | During Week 4 |
+| Final Exam | 250 | During Week 8 |
+| **Total** | **1000** | |
+
+Due to the accelerated nature of the course, late submissions of any graded material will
+receive a score of zero once the answer key is posted.
+
+### Grading Scale
+
+| Min | Max | Letter |
+|----:|----:|:-------|
+| 930 | 1000 | A |
+| 900 | 929 | A− |
+| 870 | 899 | B+ |
+| 830 | 869 | B |
+| 800 | 829 | B− |
+| 770 | 799 | C+ |
+| 730 | 769 | C |
+| 700 | 729 | C− |
+| 670 | 699 | D+ |
+| 630 | 669 | D |
+| 600 | 629 | D− |
+| 0 | 599 | F |
+
+## Forecasting Project
+
+The goal is for everyone to design an individual project, make decisions, and have some fun.
+You will choose a specific time series, make a set of forecasts, and evaluate your success.
+You will work on this project throughout the session, submitting a pitch, a data report, and
+a final project report.
+
+Your series must have at least one new realization between when you submit your forecast and
+when you submit your evaluation. Because the session is only eight weeks long, series
+selection matters more than it does in a full semester: **your pitch must identify the release
+date of the realization you intend to forecast, and that date must fall before the end of
+Week 7.** Series whose next release falls outside the session will not be approved.
+
+## Exams
+
+There are two exams. The midterm covers Modules 1–3. The final is comprehensive and covers
+Modules 1–7. Both are administered in Canvas as timed, single-attempt exams during a defined
+window, and both mix conceptual, theoretical, and interpretive questions. You may use R and
+your own notes; you may not consult another person or an AI system.
+
+## Homework
+
+There are five homework assignments, submitted through Canvas. Each requires you to produce
+and interpret output in R. Submit both your write-up and your code.
+
+## Participation
+
+In an asynchronous course, participation means completing each module's activities within its
+week. Canvas records module progress and submission times, and these records document
+participation. Students who fail to submit graded work for more than one module week are not
+making satisfactory progress and are subject to failure. If circumstances put you behind,
+contact me immediately rather than after the fact.
+
+## Academic Integrity
+
+Academic dishonesty will not be tolerated. This includes unauthorized use of artificial
+intelligence tools. Please use AI as a resource for learning and not as a substitute for your
+submission. **AI use is not permitted on either exam.** All cases of academic dishonesty are
+reported to the Office of Student Conduct and Academic Integrity.
+
+## Educational Accessibility
+
+Old Dominion University is committed to ensuring equal access to all qualified students with
+disabilities. If you experience a disability that will impact your ability to access any
+aspect of this class, please present me with an accommodation letter from the Office of
+Educational Accessibility. **Because the session is compressed, please do this in Week 1** so
+accommodations can be in place before the midterm.
+
+The Office of Educational Accessibility is located at 1021 Student Success Center,
+757-683-4655.
+
+## Course Disclaimer
+
+The course schedule and activities are subject to change. Changes will be posted as
+Announcements in Canvas. The full syllabus PDF is the authoritative version of all policies.

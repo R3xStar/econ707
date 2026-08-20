@@ -1,0 +1,1248 @@
+---
+title: "X Variables"
+subtitle: "Week 11"
+author: "Rex Sitti"
+institute: "Old Dominion University"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: "https://ww1.odu.edu/facultystaff/communication/toolkit/current-logos/_jcr_content/par/section_1593932067/columns_527553970/column_2/image.img.440.jpg/1599596551953.jpg"
+    footer: "ECON 707/807: Econometrics II"
+    
+self-contained: true
+
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(out.width = '90%')
+
+par(mar = c(4.1, 4.1, 1.1, 4.1))
+set.seed(321)
+library("stargazer")
+library("lubridate")
+library("forecast")
+library("scales")
+library("tseries")
+
+colorize <- function(x, color) {
+  if (knitr::is_latex_output()) {
+    sprintf("\\textcolor{%s}{%s}", color, x)
+  } else if (knitr::is_html_output()) {
+    sprintf("<span style='color: %s;'>%s</span>", color, x)
+  } else x
+}
+
+# ============================================================================
+# SYNTHETIC DATA GENERATORS - Slides work without external data files
+# ============================================================================
+
+generate_gdp_yield_data <- function() {
+  # Generate quarterly GDP and yield curve data (1962Q1 - 2015Q1)
+  set.seed(123)
+  n <- 213  # 53 years * 4 quarters
+  dates <- seq(as.Date("1962-01-01"), by = "quarter", length.out = n)
+  
+  # GDP: trend + cycle + noise
+  trend <- seq(2, 5, length.out = n)
+  cycle <- 0.5 * sin(2 * pi * (1:n) / 40)
+  gdp_pc <- trend + cycle + rnorm(n, 0, 0.4)
+  
+  # Interest rates with realistic correlation
+  ir3m <- 5 + 0.5 * (1:n)/50 + cumsum(rnorm(n, 0, 0.3))
+  ir3m <- pmax(0.1, ir3m)  # Keep positive
+  
+  ir10y <- ir3m + 1.5 + 0.5 * sin(2 * pi * (1:n) / 60) + rnorm(n, 0, 0.2)
+  
+  # GDP level (for reference)
+  gdp <- 10000 * exp(cumsum(gdp_pc/100))
+  
+  data.frame(
+    DATE = dates,
+    gdp_pc = gdp_pc,
+    ir3m = ir3m,
+    ir10y = ir10y,
+    gdp = gdp
+  )
+}
+
+generate_consumption_income_data <- function() {
+  # Generate monthly consumption and income data (1959-2024)
+  set.seed(456)
+  n <- 780  # 65 years * 12 months
+  dates <- seq(as.Date("1959-01-01"), by = "month", length.out = n)
+  
+  # Income: upward trend with business cycles
+  log_pi <- 8 + 0.003 * (1:n) + 0.1 * sin(2 * pi * (1:n) / 120)
+  pi <- exp(log_pi + rnorm(n, 0, 0.02))
+  
+  # Consumption: ~90% of income with slight lag
+  log_pce <- log(pi * 0.9) + rnorm(n, 0, 0.015)
+  pce <- exp(log_pce)
+  
+  data.frame(
+    DATE = dates,
+    PI = pi,
+    PCE = pce
+  )
+}
+
+generate_aids_data <- function() {
+  # Generate monthly AIDS diagnoses and deaths (1987-1996)
+  set.seed(789)
+  n <- 120  # 10 years * 12 months
+  dates <- seq(as.Date("1987-01-01"), by = "month", length.out = n)
+  
+  # Diagnoses: rise then fall with AZT introduction
+  peak <- 60
+  diag <- 500 + 800 * exp(-((1:n - peak)^2) / 500) + rnorm(n, 0, 50)
+  diag <- pmax(100, diag)
+  
+  # Deaths: lag diagnoses by ~6-12 months
+  death <- numeric(n)
+  # Start at i=13 to ensure both diag[i-6] and diag[i-12] are valid
+  for(i in 13:n) {
+    death[i] <- 0.6 * diag[i-6] + 0.3 * diag[i-12] + rnorm(1, 0, 30)
+  }
+  death <- pmax(50, death)
+  
+  # Add missingness at start (first year has no/limited death data)
+  death[1:12] <- NA
+  
+  data.frame(
+    month = dates,
+    diag = round(diag),
+    deaths = round(death)
+  )
+}
+```
+
+## Learning Objectives
+
+By the end of this module, you should be able to:
+
+1. Estimate distributed lag and ARDL models with exogenous variables
+2. Recognize and avoid spurious regression in non-stationary data
+3. Test for cointegration between economic time series
+4. Estimate and interpret error correction models (ECM)
+5. Forecast using models with exogenous predictors
+
+## Topics
+
+- Distributed Lag Models
+- Spurious Regression
+- Cointegration
+- Error Correction Models
+
+## Motivating Question
+
+Can we use **today's** information to predict **tomorrow's** outcomes?
+
+. . .
+
+Examples:
+
+- Yield curve → Future GDP growth
+- Leading indicators → Recessions
+- Diagnoses → Deaths (with lag)
+
+. . .
+
+**Challenge**: Both $X$ and $Y$ might be non-stationary!
+
+## GDP and the Yield Curve
+
+<center>
+<iframe src="https://fred.stlouisfed.org/graph/graph-landing.php?g=WbvQ&width=width=960&height=500" scrolling="no" frameborder="0" style="width:960px; height:500px;" allowTransparency="true" loading="lazy" data-external="1"></iframe>
+</center>
+
+## GDP and the Yield Curve {visibility="uncounted"}
+
+```{r}
+#| code-fold: show
+# Load or generate GDP and yield curve data
+# If you have the real data, use: tmp <- read.csv("../data/fredgraph (2).csv")
+# Otherwise, use synthetic data:
+tmp <- generate_gdp_yield_data()
+
+colnames(tmp) <- c("DATE", "gdp_pc", "ir3m", "ir10y", "gdp")
+rbind(head(tmp, 5), tail(tmp, 5))
+```
+
+## Data Preparation {visibility="uncounted"}
+
+Once you have your data, you might need to add/modify variables.
+
+- Do this *before* converting to a ```ts()``` object.
+
+. . .
+
+```{r results='hold'}
+#| code-fold: show
+# Create term spread: 10-year minus 3-month rate
+tmp$spread <- tmp$ir10y - tmp$ir3m
+```
+
+## Data Preparation {visibility="uncounted"}
+
+You can also modify after creating ```ts()``` object:
+
+. . .
+
+```{r results='hold'}
+#| code-fold: show
+# Convert to quarterly time series starting 1962Q1
+tmp <- ts(tmp, start = c(1962, 1), frequency = 4)
+
+# Add spread using ts.union (keeps all columns)
+tmp <- ts.union(tmp, spread = tmp[,"ir10y"] - tmp[,"ir3m"], dframe = FALSE)
+rbind(head(tmp, 3), tail(tmp, 3))
+
+# Clean up column names
+colnames(tmp) <- gsub("tmp.", "", colnames(tmp))
+```
+
+```{r include=FALSE}
+# Remove duplicate spread column
+tmp <- tmp[,-which(colnames(tmp) == "spread")[1]]
+```
+
+## Data Manipulation Examples {visibility="uncounted"}
+
+Creating differences, growth rates, and lags:
+
+. . .
+
+```{r}
+#| code-fold: show
+# ts.union combines time series, aligning by time
+head(ts.union(y = tmp[,"gdp_pc"],
+              diff_y = diff(tmp[,"gdp"]),              # First difference
+              pc_y = 100*diff(tmp[,"gdp"])/tmp[,"gdp"] # % change
+              ), 10)
+```
+
+## GDP and the Yield Curve {visibility="uncounted"}
+
+```{r results='hold'}
+#| code-fold: true
+plot(tmp[,c("gdp_pc")], ylim = range(tmp[,c("gdp_pc", "spread")]),
+     col = alpha("tomato", .6), lwd = 2,
+     ylab = "Percent", main = "GDP Growth and Term Spread")
+lines(tmp[,"spread"], col = alpha("dodgerblue", .6), lwd = 2)
+abline(h = 0)
+legend("topright", lty = 1, col = c("tomato", "dodgerblue"),
+       legend = c("%Δ GDP", "Spread (10Y - 3M)"), bty = "n", lwd = 2)
+```
+
+## Stationarity Check {visibility="uncounted"}
+
+Always test for stationarity before modeling:
+
+```{r results='hold'}
+#| code-fold: true
+adf.test(tmp[,"gdp_pc"])
+adf.test(tmp[,"spread"])
+```
+
+Both series appear stationary (reject unit root).
+
+## {visibility="uncounted" .smaller}
+
+::: {.panel-tabset}
+
+### ACF
+
+```{r}
+#| code-fold: true
+acf(tmp[,c("gdp_pc", "spread")])
+```
+
+### PACF
+
+```{r}
+#| code-fold: true
+pacf(tmp[,c("gdp_pc", "spread")])
+```
+
+:::
+
+# Spurious Regression: The Danger
+
+## What is Spurious Regression?
+
+When two **unrelated** non-stationary series appear to be significantly related.
+
+. . .
+
+**The Problem**: Standard t-tests and R² are misleading!
+
+. . .
+
+```{r}
+#| code-fold: show
+# Simulate two INDEPENDENT random walks
+set.seed(123)
+N <- 100
+y <- cumsum(rnorm(N))  # Random walk 1
+x <- cumsum(rnorm(N))  # Random walk 2 (unrelated!)
+```
+
+## Spurious Regression: Visualization {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+plot(x, y, pch = 16, col = alpha("tomato", 0.6),
+     main = "Two Independent Random Walks",
+     xlab = "Series X (Random Walk)", ylab = "Series Y (Random Walk)")
+abline(lm(y ~ x), col = "dodgerblue", lwd = 2)
+text(0, max(y), 
+     paste0("R² = ", round(summary(lm(y ~ x))$r.squared, 3),
+            "\np-value < 0.001"),
+     pos = 4, col = "dodgerblue")
+```
+
+**High R², significant t-stat... but they're unrelated!**
+
+## Spurious Regression: Monte Carlo
+
+How often do we falsely reject H₀ when there's **no relationship**?
+
+. . .
+
+```{r}
+#| code-fold: show
+simulate_regression <- function(N, stationary = TRUE) {
+  if(stationary) {
+    x <- rnorm(N)
+    y <- rnorm(N)
+  } else {
+    x <- cumsum(rnorm(N))  # Random walk
+    y <- cumsum(rnorm(N))  # Random walk
+  }
+  summary(lm(y ~ x))$coefficients[2, 4] < 0.05  # Reject at 5%?
+}
+
+set.seed(456)
+nsim <- 1000
+```
+
+## Spurious Regression: Results {visibility="uncounted"}
+
+```{r}
+# False positive rates
+stationary_rejects <- mean(replicate(nsim, simulate_regression(100, TRUE)))
+rw_rejects <- mean(replicate(nsim, simulate_regression(100, FALSE)))
+```
+
+::: {.nonincremental}
+| Data Type | False Positive Rate | Expected |
+|-----------|---------------------|----------|
+| Stationary (I(0)) | `r round(100*stationary_rejects, 1)`% | 5% ✓ |
+| Random Walk (I(1)) | `r round(100*rw_rejects, 1)`% | 5% ✗ |
+:::
+
+. . .
+
+**With I(1) data, we find "significant" relationships ~75% of the time even when there's none!**
+
+## Detecting Spurious Regression
+
+**Warning signs:**
+
+1. High R² but low Durbin-Watson statistic (DW < 1)
+2. Non-stationary residuals (fail ADF test)
+3. Economic theory suggests no relationship
+
+. . .
+
+**Solution**: Test residuals for stationarity!
+
+```{r eval=FALSE}
+#| code-fold: show
+spurious_reg <- lm(y ~ x)
+adf.test(spurious_reg$residuals)  # Should reject if cointegrated
+```
+
+## Three Solutions to Spurious Regression
+
+1. **First Differences** (if not cointegrated)
+   - Model: $\Delta Y_t = \alpha + \beta \Delta X_t + e_t$
+   - Loses long-run information
+
+2. **Cointegration + ECM** (if cointegrated)
+   - Captures both short-run and long-run relationships
+   - We'll cover this next!
+
+3. **Detrending**
+   - Remove common trends first
+   - Less common in modern practice
+
+# Distributed Lag Models
+
+## Two Main R Packages {.smaller}
+
+:::: {.columns}
+
+::: {.column width="50%"}
+```dynlm```, ```dynlm()```
+
+- Data can be a ```ts()``` object
+- Lags: ```L(var, i:j)``` more intuitive
+- No built-in prediction method
+- Works with ```stargazer```
+:::
+
+::: {.column width="50%"}
+```dLagM```, ```ardlDlm()```
+
+- Data must be a ```data.frame```
+- Lags: ```p``` and ```q``` less intuitive
+- Has ```forecast()``` method
+- Doesn't work well with ```stargazer```
+:::
+
+::::
+
+. . .
+
+```{r results='hide', warning=FALSE}
+#| code-fold: show
+library("dynlm")
+library("dLagM")
+```
+
+# ```dynlm```
+
+## Using dynlm()
+
+Main model: ```dynlm()```
+
+- Create lags with ```L()``` function
+    - ```L(var, i:j)``` where ```i:j``` is lag vector
+    - Can use any vector: ```0:4```, ```c(1,4,8)```, etc.
+
+. . .
+
+Example structures:
+
+- ```L(spread, 0)``` = current value
+- ```L(spread, 1)``` = one lag
+- ```L(spread, 0:4)``` = current through 4 lags
+
+## Simple vs Distributed Lag {visibility="uncounted" .smaller}
+
+```{r results='asis'}
+#| code-fold: show
+# Static model (no lags)
+r1 <- dynlm(gdp_pc ~ spread, tmp)
+
+# Distributed lag model (current + 1 lag)
+r2 <- dynlm(gdp_pc ~ L(spread, 0:1), tmp)
+
+stargazer::stargazer(r1, r2, type = "html",
+                     column.labels = c("Static", "DL(1)"))
+```
+
+## Alternative Lag Specifications {visibility="uncounted" .smaller}
+
+These three are equivalent:
+
+```{r results='asis'}
+#| code-fold: show
+r1 <- dynlm(gdp_pc ~ spread + L(spread, 1), tmp)  # Explicit
+r2 <- dynlm(gdp_pc ~ L(spread, 0:1), tmp)         # Compact
+r3 <- dynlm(gdp_pc ~ L(spread, 0:1), tmp)         # Same
+
+stargazer::stargazer(r1, r2, r3, type = "html")
+```
+
+## Choosing Lag Length {visibility="uncounted" .smaller}
+
+Use information criteria (AIC) to select optimal lags:
+
+```{r results='asis'}
+#| code-fold: show
+r1 <- dynlm(gdp_pc ~ L(spread, 0), tmp)
+r2 <- dynlm(gdp_pc ~ L(spread, 0:4), tmp)
+r3 <- dynlm(gdp_pc ~ L(spread, 0:8), tmp)
+
+stargazer::stargazer(r1, r2, r3,
+                     add.lines = list(c("AIC",
+                                        round(AIC(r1), 2),
+                                        round(AIC(r2), 2),
+                                        round(AIC(r3), 2))),
+                     column.labels = c("DL(0)", "DL(4)", "DL(8)"),
+                     omit.stat = c("ser", "f"),
+                     type = "html")
+```
+
+Lower AIC is better. Here DL(4) or DL(8) preferred.
+
+## Aligning Sample Sizes {visibility="uncounted" .smaller}
+
+When comparing models with different lags, ensure same sample:
+
+```{r results='asis'}
+#| code-fold: show
+# All models should use same time period for fair comparison
+r1 <- dynlm(gdp_pc ~ L(spread, 0),
+            ts(tmp[9:212,], end = c(2014, 4), frequency = 4))
+r2 <- dynlm(gdp_pc ~ L(spread, 0:4),
+            ts(tmp[5:212,], end = c(2014, 4), frequency = 4))
+r3 <- dynlm(gdp_pc ~ L(spread, 0:8), tmp)
+
+stargazer::stargazer(r1, r2, r3,
+                     add.lines = list(c("AIC",
+                                        round(AIC(r1), 2),
+                                        round(AIC(r2), 2),
+                                        round(AIC(r3), 2))),
+                     omit.stat = c("ser", "f"),
+                     type = "html")
+```
+
+## ARDL Models {visibility="uncounted" .smaller}
+
+Autoregressive Distributed Lag: includes lags of both Y and X
+
+```{r results='asis'}
+#| code-fold: show
+r1 <- dynlm(gdp_pc ~ L(gdp_pc, 1:2), tmp)                    # AR(2)
+r2 <- dynlm(gdp_pc ~ L(spread, 0:2), tmp)                    # DL(2)
+r3 <- dynlm(gdp_pc ~ L(gdp_pc, 1:2) + L(spread, 0:2), tmp)  # ARDL(2,2)
+
+stargazer::stargazer(r1, r2, r3,
+                     add.lines = list(c("AIC",
+                                        round(AIC(r1), 2),
+                                        round(AIC(r2), 2),
+                                        round(AIC(r3), 2))),
+                     column.labels = c("AR(2)", "DL(2)", "ARDL(2,2)"),
+                     omit.stat = c("ser", "f"),
+                     type = "html")
+```
+
+ARDL often wins on AIC.
+
+# ```dLagM```
+
+## Using ardlDlm()
+
+Main function: ```ardlDlm()```
+
+- ```p``` = lags of X variables
+- ```q``` = lags of Y variable
+- ```remove``` = list to exclude specific lags
+
+. . .
+
+Example: ARDL(2,2) with some lags removed
+
+```{r eval=FALSE}
+#| code-fold: show
+rmv <- list(
+  p = list(spread = c(0, 1)),  # Remove spread₀ and spread₁
+  q = c(1)                       # Remove Y₁
+)
+```
+
+## DL(2) Model {visibility="uncounted" .smaller}
+
+Distributed lag with 2 lags of spread, no Y lags:
+
+```{r}
+#| code-fold: show
+rmv.q <- c(1)                    # Remove Y₁ (keeps only Y₂)
+rmv.p <- list(spread = c())      # Keep all spread lags
+rmv <- list(p = rmv.p, q = rmv.q)
+
+r1 <- ardlDlm(formula = gdp_pc ~ spread,
+              data = as.data.frame(tmp),
+              p = 2,   # 2 lags of X (spread₀, spread₁, spread₂)
+              q = 1,   # 1 lag of Y (but we remove it)
+              remove = rmv)
+summary(r1)
+```
+
+## AR(2) Model {visibility="uncounted" .smaller}
+
+Autoregressive with 2 lags of Y, no X:
+
+```{r}
+#| code-fold: show
+rmv.q <- c()                    # Keep Y lags
+rmv.p <- list(spread = c(1))    # Remove spread₁
+rmv <- list(p = rmv.p, q = rmv.q)
+
+r2 <- ardlDlm(formula = gdp_pc ~ spread,
+              data = as.data.frame(tmp),
+              p = 1,   # 1 lag of X (but remove it)
+              q = 2,   # 2 lags of Y (Y₁, Y₂)
+              remove = rmv)
+summary(r2)
+```
+
+## ARDL(2,2) Full Model {visibility="uncounted" .smaller}
+
+Both Y and X lags included:
+
+```{r}
+#| code-fold: show
+rmv.q <- c()                    # Keep all Y lags
+rmv.p <- list(spread = c())     # Keep all spread lags
+rmv <- list(p = rmv.p, q = rmv.q)
+
+r3 <- ardlDlm(formula = gdp_pc ~ spread,
+              data = as.data.frame(tmp),
+              p = 2,   # Spread: current + 2 lags
+              q = 2,   # GDP: 2 lags
+              remove = rmv)
+summary(r3)
+```
+
+## ARDL(2,2) Restricted {visibility="uncounted" .smaller}
+
+Custom lag structure:
+
+```{r}
+#| code-fold: show
+rmv.q <- c(1)                         # Remove Y₁ (keep Y₂)
+rmv.p <- list(spread = c(0,1))        # Remove spread₀, spread₁ (keep spread₂)
+rmv <- list(p = rmv.p, q = rmv.q)
+
+r4 <- ardlDlm(formula = gdp_pc ~ spread,
+              data = as.data.frame(tmp),
+              p = 2,
+              q = 2,
+              remove = rmv)
+summary(r4)
+```
+
+Model: $\text{GDP}_t = \alpha + \beta_2 \text{GDP}_{t-2} + \gamma_2 \text{Spread}_{t-2} + e_t$
+
+## Granger Causality
+
+Granger Causality: when lags of $X$ predict future values of $Y$
+
+. . .
+
+**Critical distinction:**
+
+- Granger Causality $\neq$ (`r colorize("Causal", "chocolate")`) Effect
+- It means: $X$ today predicts $Y$ tomorrow
+- Likely direction: Future GDP expectations → Today's spread
+    - GDP `r colorize("causes", "chocolate")` Spread
+    - Spread "Granger causes" GDP (predicts it)
+
+## Testing Granger Causality {visibility="uncounted" .smaller}
+
+```{r results='hold'}
+#| code-fold: show
+# Test if spread Granger-causes GDP growth
+lmtest::grangertest(gdp_pc ~ spread, tmp, order = 1)
+lmtest::grangertest(gdp_pc ~ spread, tmp, order = 2)
+```
+
+Reject H₀: Spread does Granger-cause GDP (it predicts future GDP).
+
+# Forecasting with X
+
+## Forecasting Setup
+
+To forecast Y, we need:
+
+1. Fitted ARDL model
+2. **Future values of X** (forecasts or assumptions)
+3. Forecast horizon h
+
+. . .
+
+```{r eval = FALSE}
+#| code-fold: show
+forecast(model,
+         x,              # Future X values (X_{t+1}, ..., X_{t+h})
+         h = 1,          # Forecast horizon
+         interval = FALSE,
+         level = 0.95)
+```
+
+## Forecasting Strategy {visibility="uncounted"}
+
+**Goal**: Forecast 2013-2014 GDP growth
+
+. . .
+
+**Our approach:**
+
+$$\begin{align}
+\%\Delta \text{GDP}_t &= \alpha + \sum_{i=1}^{2}\beta_i \%\Delta \text{GDP}_{t-i} + \gamma\text{Spread}_{t-2} + e_t \\ 
+\text{Spread}_t &\sim \text{ARIMA}(p,d,q)
+\end{align}$$
+
+. . .
+
+**Steps:**
+
+1. Fit ARDL model for GDP
+2. Fit ARIMA model for Spread
+3. Forecast Spread first, then use in GDP forecast
+
+## Step 1: Fit GDP Model {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Create holdout indicator (1 = test period)
+c_namez <- colnames(tmp)
+tmp <- ts.union(tmp, h = ifelse(time(tmp) >= 2013, 1, 0))
+colnames(tmp) <- c(c_namez, "h")
+lim <- tmp[,"h"] == 0  # Training data
+
+# Fit ARDL model on training data
+rmv.q <- c()
+rmv.p <- list(spread = c(0,1))
+rmv <- list(p = rmv.p, q = rmv.q)
+
+main <- ardlDlm(formula = gdp_pc ~ spread,
+                data = as.data.frame(tmp[lim,]),
+                p = 2, q = 2, remove = rmv)
+```
+
+## Step 1: Results {visibility="uncounted" .smaller}
+
+```{r}
+summary(main)
+```
+
+## Step 2: Forecast Spread {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Fit ARIMA to spread
+sub <- auto.arima(tmp[lim,"spread"])
+summary(sub)
+```
+
+## Step 2: Spread Forecasts {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+# Generate spread forecasts
+p <- predict(sub, n.ahead = 8)
+
+# Get actual test period data (first 8 quarters of test set)
+test_spread <- tmp[!lim,"spread"][1:8]
+test_times <- time(tmp[!lim,])[1:8]
+
+plot(tmp[,"spread"], lwd = 1,
+     ylim = c(-1, 4), xlim = c(2000, 2015),
+     xlab = "Quarter", ylab = "Percentage Points",
+     main = "Term Spread: Actual vs Forecast")
+lines(test_times, test_spread, col = "dodgerblue", lwd = 3)
+lines(test_times, p$pred, col = "tomato", lwd = 3)
+legend("bottomright", bty = "n", lty = 1, lwd = 2,
+       col = c("tomato", "dodgerblue"),
+       legend = c("Forecast", "Actual"))
+```
+
+## Step 3: GDP Forecasts {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+# Benchmark: ARIMA forecast (no spread info)
+r1 <- auto.arima(tmp[lim,"gdp_pc"])
+p1 <- predict(r1, n.ahead = 8)
+
+# ARDL forecast using spread forecasts
+f <- forecast(model = main, x = p$pred, h = 8, interval = FALSE)
+
+# Get actual test period data (first 8 quarters of test set)
+test_gdp <- tmp[!lim,"gdp_pc"][1:8]
+test_times <- time(tmp[!lim,])[1:8]
+
+plot(tmp[,"gdp_pc"], ylim = c(-2, 3), xlim = c(2000, 2015),
+     xlab = "Quarter", ylab = "Percentage Points",
+     main = "GDP Growth: Forecast Comparison")
+lines(test_times, test_gdp, col = "dodgerblue", lwd = 3)
+lines(test_times, f$forecasts, col = "tomato", lwd = 3)
+lines(test_times, as.numeric(p1$pred), col = "mediumseagreen", lwd = 3)
+legend("bottomright", bty = "n", lty = 1, lwd = 2,
+       col = c("tomato", "mediumseagreen", "dodgerblue"),
+       legend = c("ARDL (w/ Spread)", "ARIMA", "Actual"))
+```
+
+ARDL with spread information outperforms pure ARIMA!
+
+## Alternative: auto.arima with xreg {visibility="uncounted"}
+
+```auto.arima``` can also use external regressors:
+
+```{r}
+#| code-fold: show
+# Create lagged spread variable
+c_namez <- colnames(tmp)
+tmp <- ts.intersect(tmp, spread_l2 = lag(tmp[,"spread"], -2))
+colnames(tmp) <- c(c_namez, "spread_l2")
+
+# Compare models
+r1 <- auto.arima(tmp[,"gdp_pc"])                          # No X
+r2 <- auto.arima(tmp[,"gdp_pc"], xreg = tmp[,"spread_l2"]) # With X
+```
+
+## Results Comparison {visibility="uncounted" .smaller}
+
+:::: {.columns}
+
+::: {.column width="50%"}
+**ARIMA (no spread)**
+```{r}
+#| code-fold: true
+r1
+```
+:::
+
+::: {.column width="50%"}
+**ARIMAX (with spread)**
+```{r}
+#| code-fold: true
+r2
+```
+:::
+
+::::
+
+Lower AIC with spread → better model fit.
+
+# Cointegration
+
+## Motivation: The Random Walk Problem {visibility="uncounted"}
+
+<table border="0" width="100%">
+  <tbody><tr>
+    <td width="50%"><p align="center"><img src="https://www.eco.uc3m.es/~jgonzalo/teaching/econometriaii/archivos_cointegration/oldladyRandomWalk.gif" alt="oldladyRandomWalk.gif (14623 bytes)" width="40" height="110">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </p></td>
+    <td width="50%"><p align="center"><img src="https://www.eco.uc3m.es/~jgonzalo/teaching/econometriaii/archivos_cointegration/boy_randomWalk.gif" alt="boy_randomWalk.gif (976 bytes)" width="47" height="85"></p></td>
+  </tr>
+  <tr>
+    <td width="100%" colspan="2"><p align="center"><img src="https://www.eco.uc3m.es/~jgonzalo/teaching/econometriaii/archivos_cointegration/oldman_dog.gif" width="168" height="128" alt="oldman_dog.gif (11472 bytes)"></p></td>
+  </tr>
+</tbody></table>
+
+::: aside
+eco.uc3m.es/~jgonzalo/teaching/econometriaii/cointegration.htm
+:::
+
+## What is Cointegration?
+
+Two I(1) series are **cointegrated** if their linear combination is I(0).
+
+. . .
+
+**Example**: Consumption and Income
+
+- Both trend upward over time (I(1))
+- But their **ratio** stays relatively stable (I(0))
+- They share a common stochastic trend
+- They move together in the long run
+
+. . .
+
+**Key insight**: If cointegrated, there exists a long-run equilibrium relationship!
+
+## Economic Intuition {visibility="uncounted"}
+
+Consider consumption as a fraction of income:
+
+$$C_t = kY_t$$
+
+. . .
+
+Taking logs:
+
+$$\log(C_t) = \log(k) + \log(Y_t)$$
+
+. . .
+
+Rearranging:
+
+$$\log(C_t) - \log(Y_t) = \log(k)$$
+
+If C and Y are cointegrated, the difference is stationary (constant on average).
+
+## Testing for Cointegration {visibility="uncounted"}
+
+**Engle-Granger Two-Step Procedure:**
+
+1. Regress $Y_t = \alpha + \beta X_t + e_t$
+2. Test if residuals $\hat{e}_t$ are stationary (ADF test)
+
+. . .
+
+**If residuals are I(0)**: Variables are cointegrated ✓
+
+**If residuals are I(1)**: No cointegration, use first differences ✗
+
+## Consumption & Income Example {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+# Load or generate consumption and income data
+# If you have real data, use: pi <- read.csv("../data/inc_pce.csv")
+# Otherwise, use synthetic data:
+pi <- generate_consumption_income_data()
+pi$DATE <- ymd(pi$DATE)
+
+par(mfrow = c(1, 2))
+# Levels
+plot(pi$DATE, pi$PI, type = "l",
+     ylim = range(pi$PI, pi$PCE),
+     xlab = "Date", ylab = "$",
+     main = "Levels",
+     col = "tomato")
+lines(pi$DATE, pi$PCE, col = "dodgerblue")
+legend("topleft", legend = c("Income", "Consumption"),
+       col = c("tomato", "dodgerblue"), lty = 1, bty = "n")
+
+# Logs
+plot(pi$DATE, log(pi$PI), type = "l",
+     ylim = log(range(pi$PI, pi$PCE)),
+     xlab = "Date", ylab = "log($)",
+     main = "Logs",
+     col = "tomato")
+lines(pi$DATE, log(pi$PCE), col = "dodgerblue")
+legend("topleft", legend = c("Income", "Consumption"),
+       col = c("tomato", "dodgerblue"), lty = 1, bty = "n")
+```
+
+## Step 1: Estimate Cointegrating Regression {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Long-run relationship in logs
+reg <- lm(log(PCE) ~ log(PI), data = pi)
+summary(reg)
+```
+
+Long-run consumption elasticity ≈ 0.99 (nearly dollar-for-dollar).
+
+## Step 2: Check Residuals {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+plot(pi$DATE, reg$residuals,
+     xlab = "Time", ylab = "Residual",
+     main = "Deviation from Long-Run Equilibrium",
+     type = "l", col = "tomato")
+abline(h = 0, lty = 2)
+```
+
+Residuals show mean reversion → suggests cointegration.
+
+## Step 2: Test Residuals for Stationarity {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# ADF test on residuals
+tseries::adf.test(reg$residuals)
+```
+
+. . .
+
+**p-value = 0.01 → Reject unit root**
+
+Residuals are stationary → Consumption and Income are **cointegrated**!
+
+# Error Correction Models
+
+## From ARDL to ECM
+
+If variables are cointegrated, we can estimate an **Error Correction Model**.
+
+. . .
+
+**Starting point**: ARDL(1,1)
+
+$$C_t = \alpha + \beta_1 Y_t + \beta_2 Y_{t-1} + \gamma C_{t-1} + e_t$$
+
+. . .
+
+**Long-run equilibrium**: When $C_t = C_{t-1} = C^*$ and $Y_t = Y_{t-1} = Y^*$:
+
+$$C^* = \frac{\alpha + (\beta_1 + \beta_2)Y^*}{1 - \gamma}$$
+
+## Reparameterization to ECM {visibility="uncounted" .smaller}
+
+From ARDL form:
+
+$$C_t = \alpha + \beta_1 Y_t + \beta_2 Y_{t-1} + \gamma C_{t-1} + e_t$$
+
+. . .
+
+Subtract $C_{t-1}$ from both sides:
+
+$$\Delta C_t = \alpha + \beta_1 Y_t + \beta_2 Y_{t-1} + (\gamma - 1) C_{t-1} + e_t$$
+
+. . .
+
+Add and subtract $\beta_1 Y_{t-1}$:
+
+$$\Delta C_t = \alpha + \beta_1(Y_t - Y_{t-1}) + (\beta_1 + \beta_2)Y_{t-1} + (\gamma - 1)C_{t-1} + e_t$$
+
+. . .
+
+Rearrange:
+
+$$\Delta C_t = \alpha + \beta_1 \Delta Y_t + (\gamma - 1)[C_{t-1} - \frac{\beta_1 + \beta_2}{1-\gamma}Y_{t-1}] + e_t$$
+
+## ECM Interpretation {visibility="uncounted"}
+
+$$\Delta C_t = \beta_1 \Delta Y_t + \delta[C_{t-1} - \theta Y_{t-1}] + \text{constant} + e_t$$
+
+. . .
+
+**Two components:**
+
+1. **Short-run dynamics**: $\beta_1 \Delta Y_t$ 
+   - Immediate response to income changes
+
+2. **Error correction**: $\delta[C_{t-1} - \theta Y_{t-1}]$
+   - $\delta < 0$: restores equilibrium
+   - Larger $|\delta|$ → faster adjustment
+   - $C_{t-1} - \theta Y_{t-1}$ = deviation from equilibrium
+
+## Estimating ECM {visibility="uncounted"}
+
+```{r}
+#| code-fold: show
+# Prepare time series data
+pi_ts <- ts(pi, start = c(1959, 1), frequency = 12)
+
+# Create differences and error correction term
+pi_ts <- ts.intersect(pi_ts,
+                      pc = diff(log(pi_ts[,"PCE"])),    # ΔC
+                      pi = diff(log(pi_ts[,"PI"])),     # ΔY
+                      z = reg$residuals[2:length(reg$residuals)]) # EC term
+
+colnames(pi_ts) <- c("DATE", "PI", "PCE", "pc", "pi", "z")
+```
+
+## ECM Specification {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Estimate ECM with dLagM
+rmv.q <- c()                              # Keep Y lags
+rmv.p <- list(pi = c(),                   # Keep ΔY lags
+              z = c(0, 2:12))             # Keep only z₁ (EC term)
+rmv <- list(p = rmv.p, q = rmv.q)
+
+ecm <- ardlDlm(formula = pc ~ pi + z,
+               data = as.data.frame(pi_ts),
+               p = 12, q = 12,
+               remove = rmv)
+```
+
+## ECM Results {visibility="uncounted" .smaller}
+
+```{r}
+summary(ecm)
+```
+
+## Interpreting ECM Coefficient {visibility="uncounted"}
+
+$$\Delta C_t = 0.25\Delta Y_t - 0.07[C_{t-1} - 0.99Y_{t-1}] + ...$$
+
+. . .
+
+**Error Correction Coefficient** ($\delta = -0.07$):
+
+- Negative ✓ (restores equilibrium)
+- If consumption 1% above equilibrium → next period decreases by 0.07%
+- Gradual adjustment back to long-run relationship
+
+## Adjustment Speed: Half-Life {visibility="uncounted"}
+
+How long until half the deviation is corrected?
+
+$$\text{Half-life} = \frac{\log(0.5)}{\log(1 + \delta)}$$
+
+```{r}
+#| code-fold: show
+delta <- coef(ecm)["z.1"]  # Error correction coefficient
+half_life <- log(0.5) / log(1 + delta)
+cat("Half-life:", round(half_life, 1), "months")
+```
+
+About `r round(half_life, 1)` months to close half the gap to equilibrium.
+
+## Decision Guide: When to Use What? {.smaller}
+
+| Situation | Model | Reason |
+|-----------|-------|--------|
+| Both I(0) | Standard OLS | No spurious regression risk |
+| Both I(1), not cointegrated | First differences | Avoid spurious regression |
+| Both I(1), cointegrated | ECM | Capture short-run + long-run |
+| Mixed I(0) and I(1) | Reconsider specification | Check theory |
+
+. . .
+
+**Workflow:**
+
+1. Test each series for unit root (ADF)
+2. If both I(1), test for cointegration (residual ADF)
+3. If cointegrated → ECM; if not → first differences
+
+# Homework: Forecasting AIDS Deaths
+
+## The AIDS Forecasting Problem {visibility="uncounted"}
+
+**Data**: Monthly AIDS diagnoses and deaths (1987-1996)
+
+**Your task**: Forecast 2 years of deaths (1994Q2-1996Q1)
+
+```{r}
+#| code-fold: true
+# Load or generate AIDS data
+# If you have real data, use: tmp3 <- readRDS("../data/aids.RDS")
+# Otherwise, use synthetic data:
+tmp3 <- generate_aids_data()
+
+tmp <- aggregate(list(death = tmp3$deaths, diag = tmp3$diag),
+                 list(month = tmp3$month), sum, na.rm = TRUE)
+tmp$death <- ifelse(tmp$death == 0, NA, tmp$death)
+tmp$diag <- ifelse(tmp$diag == 0, NA, tmp$diag)
+tmp <- tmp[year(tmp$month) >= 1987,]
+
+lim1 <- tmp$month <= ymd("1994-04-01") & !is.na(tmp$death)
+
+plot(tmp$month, tmp$diag, type = "n",
+     xlab = "Month", ylab = "Count",
+     main = "AIDS: Can Diagnoses Help Predict Deaths?")
+lines(tmp$month[lim1], tmp$diag[lim1], col = "black", lwd = 2)
+lines(tmp$month[lim1], tmp$death[lim1], col = "dodgerblue", lwd = 2)
+abline(v = ymd(c("1993-01-01", "1994-04-15")), lty = c(1, 2))
+legend("topright", bty = "n", col = c("black", "dodgerblue"), lty = 1,
+       legend = c("Diagnoses", "Deaths"), lwd = 2)
+```
+
+## Benchmark Model {visibility="uncounted"}
+
+Naive ARIMA forecast (no diagnoses information):
+
+```{r echo=FALSE}
+aids_ts <- ts(tmp[lim1,2:3], start = c(min(year(tmp$month[lim1]))), frequency = 12)
+reg1 <- auto.arima(aids_ts[,"death"])
+H <- 24
+p1 <- predict(reg1, n.ahead = H)
+
+plot(tmp$month, tmp$diag, type = "n",
+     xlab = "Month", ylab = "Count",
+     main = "Baseline: ARIMA Forecast")
+lines(tmp$month[lim1], tmp$diag[lim1], col = "black", lwd = 2)
+lines(tmp$month[lim1], tmp$death[lim1], col = "dodgerblue", lwd = 2)
+lines(tmp$month[!lim1][1:H], p1$pred, col = "tomato", lwd = 2)
+lines(tmp$month[!lim1][1:H], tmp$death[!lim1][1:H], col = "mediumseagreen", lwd = 2)
+abline(v = ymd("1994-04-15"), lty = 2)
+legend("topright", bty = "n", lwd = 2,
+       col = c("black", "dodgerblue", "tomato", "mediumseagreen"), lty = 1,
+       legend = c("Diagnoses", "Deaths (train)", "ARIMA Forecast", "Deaths (actual)"))
+```
+
+## Your Assignment
+
+**Objective**: Beat the ARIMA benchmark using diagnoses as a leading indicator
+
+. . .
+
+**Deliverables**:
+
+1. **Model Selection** (2-3 paragraphs)
+   - Which lag structure did you choose? Why?
+   - Report AIC/BIC for 2-3 candidate models
+   - Justify your final specification
+
+2. **Forecast Plot**
+   - Show actual deaths, your forecast, and ARIMA benchmark
+   - Include 2013-2014 holdout period clearly marked
+
+3. **Accuracy Comparison**
+   - Compute RMSE for your model vs ARIMA
+   - Which performs better out-of-sample?
+
+## Hints for Success
+
+1. **Explore the relationship**
+   - Plot diagnoses vs deaths with different lags
+   - What lag makes sense medically?
+
+2. **Model choices**
+   - `dynlm`: Easier for exploration, works with `stargazer`
+   - `dLagM`: Has `forecast()` function for prediction
+
+3. **Don't overfit!**
+   - More lags ≠ better forecast
+   - Use AIC, but validate on holdout
+
+4. **Code template available**
+   - Commented starter code in slides
+   - Shows data loading and ARIMA benchmark
+
+## Starter Code Reminder {visibility="uncounted" .smaller}
+
+```{r eval=FALSE}
+#| code-fold: show
+# Load and prepare data
+library("lubridate"); library("forecast"); library("tseries")
+
+# If you have real data, use: tmp3 <- readRDS("../data/aids.RDS")
+# Otherwise, use the synthetic data generator from the slides:
+tmp3 <- generate_aids_data()
+
+tmp <- aggregate(list(death = tmp3$deaths, diag = tmp3$diag),
+                 list(month = tmp3$month), sum, na.rm = TRUE)
+tmp$death <- ifelse(tmp$death == 0, NA, tmp$death)
+tmp$diag <- ifelse(tmp$diag == 0, NA, tmp$diag)
+tmp <- tmp[year(tmp$month) >= 1987,]
+
+# Split train/test
+lim1 <- tmp$month <= ymd("1994-04-01") & !is.na(tmp$death)
+aids_ts <- ts(tmp[lim1, 2:3], start = c(1987), frequency = 12)
+
+# TODO: Your model here (beat the ARIMA!)
+# Hint: Use L(diag, k) for lagged diagnoses
+
+# Benchmark ARIMA
+reg1 <- auto.arima(aids_ts[,"death"])
+p1 <- predict(reg1, n.ahead = 24)
+```
+
+## Next Class
+
+::: {.nonincremental}
+
+**Week 12 (11/23)**: No Class - Thanksgiving Break
+
+**Week 13 (11/30)**:
+
+- Vector Autoregression (VAR)
+- Impulse Response Functions
+- Spatial Autocorrelation
+
+**Week 14 (12/7)**:
+
+- Final Project Presentations
+
+:::
+

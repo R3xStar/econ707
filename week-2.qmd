@@ -1,0 +1,23 @@
+---
+title: "Week 2: Naïve and Benchmark Forecasts"
+---
+
+Simple forecasts you must beat before anything fancy is worth doing: mean, naïve, seasonal naïve, and drift. We also cover forecast types and the accuracy measures used to evaluate them.
+
+## Lecture Slides
+
+- [Naive Forecasting Methods](slides/naiveforecasts_02.html){target="_blank"}
+
+Slides open in a new tab. They are self-contained — use the arrow keys to move
+through them, and `Esc` for the slide overview.
+
+## Reading
+
+Diebold Ch. 4–6
+
+## Due this week
+
+- HW 2
+
+Everything is due at **11:59 pm ET on the Sunday that closes the module week**,
+unless Canvas says otherwise.

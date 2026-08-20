@@ -1,0 +1,23 @@
+---
+title: "Week 1: Visuals, Data, and the Forecasting Workflow"
+---
+
+What a time series is, why forecasting is different from ordinary regression, and how to get data into R and look at it properly. We set up the workflow you will use for the rest of the session: import, plot, inspect, then model.
+
+## Lecture Slides
+
+- [Introduction to Time Series Analysis](slides/intro_01_new.html){target="_blank"}
+
+Slides open in a new tab. They are self-contained — use the arrow keys to move
+through them, and `Esc` for the slide overview.
+
+## Reading
+
+Diebold Ch. 1–2; FPP3 Ch. 2
+
+## Due this week
+
+- HW 1
+
+Everything is due at **11:59 pm ET on the Sunday that closes the module week**,
+unless Canvas says otherwise.

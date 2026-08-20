@@ -1,0 +1,1066 @@
+---
+title: "Naive Forecasting Methods"
+subtitle: "ECON 707/807: Econometrics II - Week 2"
+author: "Rex Sitti"
+institute: "Old Dominion University - Strome College of Business"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Show Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: https://www.odu.edu/content/dam/odu/logos/univ/png-72dpi/odu-secondarytm-blu.png
+    footer: "ECON 707/807: Econometrics II - Spring 2026"
+    theme: default
+  
+self-contained: true
+editor: source
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.align = 'center',
+  out.width = '100%',
+  warning = FALSE,
+  message = FALSE
+)
+par(mar = c(4.1, 4.1, 1.1, 2.1))
+
+# Load required packages
+library(lubridate)
+library(forecast)
+```
+
+## Learning Objectives {.smaller}
+
+By the end of this lecture, you will be able to:
+
+::: {.nonincremental}
+1. Define point forecasts and forecast distributions
+2. Understand and apply loss functions (absolute and quadratic)
+3. Derive optimal forecasts by minimizing expected loss (risk)
+4. Construct forecast intervals for predictions
+5. Distinguish between forecast errors and residuals
+6. Implement naive forecast methods in R
+7. Evaluate when simple forecasts are appropriate
+:::
+
+::: {.callout-note}
+**Today's focus**: The simplest forecasting methods that serve as benchmarks
+:::
+
+# Motivating Example
+
+## International Air Passengers Dataset
+```{r}
+#| code-fold: false
+# Load the classic Air Passengers dataset
+data("AirPassengers")
+air <- AirPassengers
+range(air)  # 1949-1960
+```
+
+::: {.fragment}
+**Questions to consider:**
+
+1. What would be a good forecast for future passenger counts?
+2. How do we define "good"?
+3. What is our objective or goal in forecasting?
+:::
+
+## Visualizing the Data
+
+Does looking at the distribution change your forecast?
+```{r}
+#| code-fold: true
+#| fig-cap: "Distribution of monthly air passenger counts"
+
+plot(density(air), 
+     xlab = "Number of Passengers", 
+     ylab = "Density", 
+     main = "Distribution of Air Passengers (1949-1960)",
+     lwd = 2, col = "dodgerblue")
+rug(air, col = "gray50")
+abline(v = mean(air), col = "red", lwd = 2, lty = 2)
+abline(v = median(air), col = "darkgreen", lwd = 2, lty = 2)
+legend("topright", 
+       legend = c("Mean", "Median"),
+       col = c("red", "darkgreen"),
+       lty = 2, lwd = 2)
+```
+
+## Types of Forecasts {.smaller}
+
+::: {.fragment}
+**Point Forecast ($\hat{Y}$)**: A single "best guess" for an unknown future value
+:::
+
+::: {.fragment}
+**Forecast Distribution**: Complete distribution of possibilities with their probabilities
+- Captures uncertainty
+- Provides range of outcomes
+- More informative than point forecast alone
+:::
+
+::: {.fragment}
+**Point Forecast (reconsidered)**: A summary statistic of the forecast distribution
+- Mean, median, mode?
+- How do we choose?
+- Enter: **Loss Functions**
+:::
+
+::: {.callout-important}
+The choice of summary statistic depends on your loss function!
+:::
+
+# Loss Functions and Risk
+
+## Forecast Error
+
+**Forecast error** is the difference between actual and predicted:
+
+$$e = y - \hat{y}$$
+
+::: {.fragment}
+**Will there always be forecast error?**
+:::
+
+::: {.fragment}
+**Answer**: Yes, unless $y$ is deterministic (which it rarely is in economics)!
+:::
+
+::: {.fragment}
+However, some errors are worse than others. We need a way to evaluate them:
+
+$$L(e): \text{Loss Function}$$
+
+A loss function quantifies how "bad" a forecast error is.
+:::
+
+## Common Loss Functions {.smaller}
+
+::: {.fragment}
+**Absolute Loss** (L1 loss)
+$$L(e) = |e| = |y - \hat{y}|$$
+
+- Linear penalty
+- Treats over- and under-forecasts symmetrically
+- Robust to outliers
+- **Optimal forecast**: Median
+:::
+
+::: {.fragment}
+**Quadratic Loss** (L2 loss, MSE)
+$$L(e) = e^2 = (y - \hat{y})^2$$
+
+- Penalty increases with square of error
+- Heavily penalizes large errors
+- Differentiable (nice mathematical properties)
+- **Optimal forecast**: Mean
+:::
+
+::: {.callout-tip}
+Different loss functions lead to different optimal forecasts!
+:::
+
+## Risk Minimization {.smaller}
+
+Forecasts seek to minimize **risk**, defined as expected loss:
+
+$$R(\hat{y}) = E[L(e)] = E[L(y - \hat{y})]$$
+
+::: {.fragment}
+**For quadratic loss**, let's find the optimal $\hat{y}$:
+
+$$R(\hat{y}) = E[(y - \hat{y})^2]$$
+:::
+
+::: {.fragment}
+Expand the squared term:
+$$E[(y - \hat{y})^2] = E[y^2 - 2y\hat{y} + \hat{y}^2]$$
+$$= E[y^2] - 2\hat{y}E[y] + \hat{y}^2$$
+:::
+
+::: {.fragment}
+Take derivative with respect to $\hat{y}$ and set to zero:
+$$\frac{\partial R}{\partial \hat{y}} = -2E[y] + 2\hat{y} = 0$$
+:::
+
+::: {.fragment}
+**Solution**: 
+$$\boxed{\hat{y}^* = E[y]}$$
+
+Under quadratic loss, the **mean** minimizes risk!
+:::
+
+## Computing Expectations {.smaller}
+
+How do we calculate $E[y]$ in practice?
+
+::: {.fragment}
+**Continuous random variable**:
+$$E[Y] = \int_{-\infty}^{\infty} y \cdot f(y) \, dy$$
+where $f(y)$ is the probability density function
+:::
+
+::: {.fragment}
+**Discrete random variable**:
+$$E[Y] = \sum_{i} y_i \cdot P(y_i)$$
+where $P(y_i)$ is the probability mass function
+:::
+
+::: {.fragment}
+**Empirical (sample) estimate**:
+$$\hat{E}[Y] = \bar{y} = \frac{1}{n}\sum_{i=1}^{n} y_i$$
+
+This is what we use with real data!
+:::
+
+## Example: Weighted Coin Flip {.smaller}
+
+Suppose you flip a weighted coin with probabilities:
+
+$$P(\text{Tails}) = \frac{3}{7}, \quad P(\text{Heads}) = \frac{4}{7}$$
+
+**Payoffs:**
+- Tails: You win \$40
+- Heads: You lose \$25
+
+::: {.fragment}
+**Expected value**:
+$$E[\text{payoff}] = 40 \cdot \frac{3}{7} + (-25) \cdot \frac{4}{7}$$
+$$= \frac{120}{7} - \frac{100}{7} = \frac{20}{7} \approx \$2.86$$
+:::
+
+::: {.fragment}
+**Expected risk** (using quadratic loss and optimal $\hat{y} = E[y]$):
+
+$$R = E[(Y - \hat{Y})^2] = \left(40 - \frac{20}{7}\right)^2 \cdot \frac{3}{7} + \left(-25 - \frac{20}{7}\right)^2 \cdot \frac{4}{7}$$
+$$\approx 1086.73$$
+:::
+
+## Applying to Air Passengers {.smaller}
+
+Let's use our optimal forecast $\hat{y} = E[y]$ (the mean):
+```{r}
+#| code-fold: true
+#| fig-cap: "Naive mean forecast for air passengers"
+
+# Calculate mean of historical data
+mean_forecast <- mean(air)
+
+# Create forecast for 1961-1962
+plot(air, xlim = c(1949, 1963), ylim = c(100, 650),
+     xlab = "Year", ylab = "Number of Passengers",
+     main = "Air Passengers: Mean Forecast")
+
+# Add forecast line
+air_forecast <- ts(rep(mean_forecast, 24), 
+                   start = c(1961, 1), 
+                   end = c(1962, 12), 
+                   frequency = 12)
+lines(air_forecast, col = "tomato", lwd = 3, lty = 2)
+legend("topleft", 
+       legend = c("Observed", "Forecast (Mean)"),
+       col = c("black", "tomato"),
+       lty = c(1, 2), lwd = c(1, 3))
+```
+
+::: {.fragment}
+**Observation**: This looks terrible! Why? (Hint: trend, seasonality)
+:::
+
+# Forecast Intervals
+
+## Constructing Confidence Intervals
+
+If $y$ is normally distributed, we can construct a forecast interval:
+
+::: {.fragment}
+**General form** (for confidence level $1-\alpha$):
+$$\left[\hat{y} - z_{\alpha/2}\sigma, \quad \hat{y} + z_{\alpha/2}\sigma\right]$$
+
+where $z_{\alpha/2}$ is the critical value from the standard normal distribution.
+:::
+
+::: {.fragment}
+**For 95% confidence** ($\alpha = 0.05$, $z_{0.025} = 1.96$):
+$$\left[\hat{y} - 1.96\sigma, \quad \hat{y} + 1.96\sigma\right]$$
+:::
+
+::: {.fragment}
+**For air passengers**:
+```{r}
+mean_air <- round(mean(air), 1)
+sd_air <- round(sd(air), 1)
+```
+$$\left[`r mean_air` - 1.96 \times `r sd_air`, \quad `r mean_air` + 1.96 \times `r sd_air`\right]$$
+$$= \left[`r round(mean_air - 1.96*sd_air, 1)`, \quad `r round(mean_air + 1.96*sd_air, 1)`\right]$$
+:::
+
+## Visualizing Forecast Intervals
+```{r}
+#| code-fold: true
+#| fig-cap: "Mean forecast with 95% confidence interval"
+
+# Create forecast and intervals
+air_forecast <- ts(rep(mean(air), 24), 
+                   start = c(1961, 1), frequency = 12)
+air_upper <- air_forecast + 1.96*sd(air)
+air_lower <- air_forecast - 1.96*sd(air)
+
+# Plot
+plot(air, xlim = c(1949, 1963),
+     ylim = c(min(air, air_lower), max(air, air_upper)),
+     xlab = "Year", ylab = "Number of Passengers",
+     main = "Air Passengers: Mean Forecast with 95% CI")
+lines(air_forecast, col = "tomato", lwd = 2, lty = 2)
+lines(air_upper, col = "tomato", lty = 1)
+lines(air_lower, col = "tomato", lty = 1)
+polygon(c(time(air_forecast), rev(time(air_forecast))),
+        c(air_lower, rev(air_upper)),
+        col = scales::alpha("tomato", 0.2), border = NA)
+legend("topleft",
+       legend = c("Observed", "Forecast", "95% CI"),
+       col = c("black", "tomato", "tomato"),
+       lty = c(1, 2, 1), lwd = c(1, 2, 1))
+```
+
+## Implementation in R {.smaller}
+```{r}
+#| code-fold: false
+#| eval: false
+
+# Step 1: Create time index
+library(lubridate)
+start_date <- ymd("1949-01-01")
+end_date <- ymd("1962-12-01")
+dates <- seq(start_date, end_date, by = "month")
+
+# Step 2: Create data frame with actual and forecast periods
+air_df <- data.frame(
+  time = dates,
+  air = c(as.numeric(air), rep(NA, 24))  # 24 months of forecast
+)
+
+# Step 3: Fit model (just intercept = mean)
+model <- lm(air ~ 1, data = air_df)
+
+# Step 4: Generate predictions
+air_df$pred <- predict(model, newdata = air_df)
+
+# Step 5: Add confidence intervals
+air_df$pred_lower <- air_df$pred - 1.96*sd(air_df$air, na.rm = TRUE)
+air_df$pred_upper <- air_df$pred + 1.96*sd(air_df$air, na.rm = TRUE)
+```
+
+## Plotting with Base R
+```{r}
+#| code-fold: true
+#| fig-cap: "Forecast using data frame approach"
+
+# Create the data
+library(lubridate)
+dates <- seq(ymd("1949-01-01"), ymd("1962-12-01"), by = "month")
+air_df <- data.frame(
+  time = dates,
+  air = c(as.numeric(air), rep(NA, 24))
+)
+
+# Fit and predict
+model <- lm(air ~ 1, data = air_df)
+air_df$pred <- predict(model, newdata = air_df)
+air_df$pred_lower <- air_df$pred - 1.96*sd(air_df$air, na.rm = TRUE)
+air_df$pred_upper <- air_df$pred + 1.96*sd(air_df$air, na.rm = TRUE)
+
+# Plot
+plot(air_df$time, air_df$air,
+     xlim = ymd(c("1949-01-01", "1963-01-01")),
+     ylim = c(min(air_df$pred_lower, na.rm = TRUE),
+              max(air_df$pred_upper, na.rm = TRUE)),
+     type = "l", xlab = "Date", ylab = "Passengers",
+     main = "Air Passengers Forecast")
+
+# Add forecast region
+is_forecast <- air_df$time >= ymd("1961-01-01")
+lines(air_df$time[is_forecast], air_df$pred[is_forecast], 
+      col = "tomato", lty = 2, lwd = 2)
+lines(air_df$time[is_forecast], air_df$pred_lower[is_forecast], 
+      col = "tomato")
+lines(air_df$time[is_forecast], air_df$pred_upper[is_forecast], 
+      col = "tomato")
+```
+
+# Time Series Notation
+
+## Cross-Section vs. Time Series vs. Panel
+
+::: columns
+::: {.column width="33%"}
+**Cross-Section**
+
+- Subscript: $i$ (iterator)
+- Examples: $Y_i$, $X_i$
+- One snapshot in time
+- Multiple entities
+:::
+
+::: {.column width="33%"}
+**Time Series**
+
+- Subscript: $t$ (time)
+- Examples: $Y_t$, $X_t$
+- One entity
+- Multiple time periods
+:::
+
+::: {.column width="33%"}
+**Panel Data**
+
+- Subscripts: $i$ and $t$
+- Examples: $Y_{it}$, $X_{it}$
+- Multiple entities
+- Multiple time periods
+:::
+:::
+
+::: {.callout-note}
+Today we focus on **time series** data (one entity over time)
+:::
+
+## Frequency and Periodicity {.smaller}
+
+**Frequency** refers to the time interval between observations:
+
+::: {.fragment}
+| Frequency | Example Data | Observations/Year |
+|-----------|--------------|-------------------|
+| Annual | GDP by year | 1 |
+| Quarterly | GDP by quarter | 4 |
+| Monthly | Unemployment rate | 12 |
+| Weekly | Stock prices | ~52 |
+| Daily | Temperature | 365 |
+| High-frequency | Stock trades | Thousands+ |
+:::
+
+::: {.fragment}
+**In R**:
+```r
+# Monthly data starting January 1949
+ts(data, start = c(1949, 1), frequency = 12)
+
+# Quarterly data starting Q1 1990
+ts(data, start = c(1990, 1), frequency = 4)
+```
+:::
+
+## Lags and Leads {.smaller}
+
+**Intertemporal dependency** is a key feature of time series:
+
+::: {.fragment}
+**Lags** (past values):
+$$y_{t-1}, \quad y_{t-2}, \quad y_{t-k}$$
+
+- $y_{t-1}$: one period ago (yesterday, last month, last year)
+- $y_{t-k}$: $k$ periods ago
+:::
+
+::: {.fragment}
+**Leads** (future values):
+$$y_{t+1}, \quad y_{t+2}, \quad y_{t+k}$$
+
+- $y_{t+1}$: one period ahead (tomorrow, next month, next year)
+- $y_{t+k}$: $k$ periods ahead
+:::
+
+::: {.fragment}
+**Sample notation**:
+$$\text{Sample: } \{y_1, y_2, y_3, \ldots, y_T\}$$
+
+where $T$ is the last observation in our sample.
+:::
+
+## Forecast Notation {.smaller}
+
+::: {.fragment}
+**Sample period**: Data we have observed
+$$\{y_1, y_2, y_3, \ldots, y_T\}$$
+:::
+
+::: {.fragment}
+**Out-of-sample period**: Data we want to forecast
+$$\{y_{T+1}, y_{T+2}, \ldots, y_{T+h}\}$$
+
+where $h$ is the **forecast horizon** (how far ahead we're forecasting)
+:::
+
+::: {.fragment}
+**Ambiguous notation** (avoid!):
+- $\hat{y}_t$: Is this a forecast for period $t$? Made when?
+- $\hat{y}_{T+h}$: Forecast for period $T+h$, but made when?
+:::
+
+::: {.fragment}
+**Clear notation** (use this!):
+$$\hat{y}_{T+h|T}$$
+
+"Forecast for period $T+h$, made at time $T$ using information available through period $T$"
+:::
+
+# Conditional Forecasting
+
+## The Role of Conditioning Information {.smaller}
+
+::: {.fragment}
+**Key principles**:
+
+1. Conditioning on **relevant** variables improves forecasts (reduces risk)
+2. Both point forecasts and forecast intervals depend on conditioning variables
+:::
+
+::: {.fragment}
+Let $\Omega_t$ represent **all available information** at time $t$.
+
+Then our forecast becomes:
+$$\hat{y}_{T+h|T} = E[y_{T+h} | \Omega_T]$$
+:::
+
+::: {.fragment}
+**Information set** $\Omega_T$ might include:
+- Past values of $y$: $y_T, y_{T-1}, y_{T-2}, \ldots$
+- Current and past values of other variables: $x_T, x_{T-1}, \ldots$
+- Known relationships, economic theory
+- Institutional knowledge
+:::
+
+## Example: Basketball Player Height
+
+::: panel-tabset
+### Unconditional
+```{r}
+#| code-fold: true
+# Simulated data for demonstration
+set.seed(707)
+nba_height <- rnorm(200, mean = 79, sd = 3.5)
+wnba_height <- rnorm(200, mean = 72, sd = 2.5)
+heights <- c(nba_height, wnba_height)
+
+plot(density(heights),
+     xlim = c(65, 90), ylim = c(0, 0.12),
+     main = "Height of Professional Basketball Players",
+     xlab = paste("Height (inches) | Mean:", round(mean(heights), 1)),
+     lwd = 2)
+abline(v = mean(heights), col = "red", lwd = 2, lty = 2)
+```
+
+**Unconditional forecast**: $\hat{y} =$ `r round(mean(heights), 1)` inches
+
+### Conditional on League
+```{r}
+#| code-fold: true
+plot(density(nba_height),
+     xlim = c(65, 90), ylim = c(0, 0.14),
+     main = "Height by League",
+     xlab = paste("Height (inches) | WNBA:", 
+                  round(mean(wnba_height), 1), "| NBA:", 
+                  round(mean(nba_height), 1)),
+     col = "dodgerblue", lwd = 2)
+lines(density(wnba_height), col = "tomato", lwd = 2)
+abline(v = mean(heights), col = "gray50", lwd = 2, lty = 1)
+abline(v = mean(nba_height), col = "dodgerblue", lwd = 2, lty = 2)
+abline(v = mean(wnba_height), col = "tomato", lwd = 2, lty = 2)
+legend("topright",
+       legend = c("NBA", "WNBA", "Overall"),
+       col = c("dodgerblue", "tomato", "gray50"),
+       lty = c(1, 1, 1), lwd = 2)
+```
+
+**Conditional forecasts**:
+- NBA: `r round(mean(nba_height), 1)` inches  
+- WNBA: `r round(mean(wnba_height), 1)` inches
+
+**Conditioning matters!** Much more accurate than unconditional mean.
+:::
+
+## Relevant vs. Irrelevant Information
+
+::: columns
+::: {.column width="50%"}
+**Relevant conditioning**
+
+- NBA vs. WNBA league
+- Position played
+- Age
+- Country of origin
+
+b Reduces forecast variance
+
+b Improves accuracy
+:::
+
+::: {.column width="50%"}
+**Irrelevant conditioning**
+
+- First letter of name
+- Jersey number
+- Birth month
+- Shoe brand
+
+b Doesn't help
+
+b May add noise
+:::
+:::
+
+::: {.callout-important}
+Not all information is useful! Include only variables that actually predict your outcome.
+:::
+
+# Time Series Components
+
+## Decomposing Time Series {.smaller}
+
+We can decompose any time series into components:
+
+$$y_t = \tau_t + C_t + S_t + \epsilon_t$$
+
+where:
+
+::: {.fragment}
+| Component | Symbol | Description | Frequency |
+|-----------|--------|-------------|-----------|
+| **Trend** | $\tau_t$ | Long-term direction | Very long-term, smooth |
+| **Cycle** | $C_t$ | Business cycle fluctuations | 2-7 years typically |
+| **Seasonal** | $S_t$ | Regular calendar patterns | Annual |
+| **Irregular** | $\epsilon_t$ | Random noise | No pattern |
+:::
+
+::: {.callout-tip}
+Thinking about components separately (additively) helps us build better models!
+:::
+
+## Visualizing Components
+```{r}
+#| code-fold: true
+#| fig-cap: "Air passengers showing trend and seasonality"
+
+plot(air, 
+     xlab = "Year", 
+     ylab = "Number of Passengers",
+     main = "International Air Passengers (1949-1960)",
+     lwd = 2)
+
+# Add a trend line
+time_index <- time(air)
+trend_model <- lm(as.numeric(air) ~ time_index)
+trend_line <- ts(fitted(trend_model), start = start(air), frequency = 12)
+lines(trend_line, col = "red", lwd = 2, lty = 2)
+
+legend("topleft",
+       legend = c("Observed", "Linear Trend"),
+       col = c("black", "red"),
+       lty = c(1, 2), lwd = 2)
+```
+
+::: {.fragment}
+**What do you see?**
+
+- Clear upward trend
+- Regular seasonal pattern
+- Increasing variance over time
+:::
+
+## When is the Mean Forecast Appropriate? {.smaller}
+
+The simple mean forecast assumes:
+
+$$E[y_{T+h}|\Omega_T] = \beta_0$$
+
+(constant over time, no trend/cycle/season)
+
+::: {.fragment}
+**Appropriate when:**
+
+- No trend or seasonality
+- Data fluctuate randomly around a constant level
+- Stationary process
+- Short-term forecasts in stable environments
+:::
+
+::: {.fragment}
+**NOT appropriate when:**
+
+- Clear trend (like air passengers)
+- Seasonal patterns
+- Structural breaks
+- Long forecast horizons
+:::
+
+::: {.callout-warning}
+Always plot your data first! Visual inspection reveals whether mean forecast makes sense.
+:::
+
+## Example: Personal Consumption
+```{r}
+#| echo: false
+# Simulate consumption data
+set.seed(707)
+n_months <- 300
+dates <- seq(ymd("2000-01-01"), by = "month", length.out = n_months)
+
+# Create realistic consumption data with COVID shock
+consumption <- numeric(n_months)
+consumption[1:240] <- 2 + 0.01*(1:240) + rnorm(240, 0, 0.3)  # Pre-COVID
+consumption[241:250] <- consumption[240] - seq(2, 8, length.out = 10)  # COVID drop
+consumption[251:300] <- consumption[250] + 0.02*(1:50) + rnorm(50, 0, 0.4)  # Recovery
+
+consume_df <- data.frame(
+  DATE = dates,
+  PCEC96_PC1 = consumption
+)
+```
+
+::: panel-tabset
+### Full Sample
+```{r}
+#| code-fold: true
+plot(consume_df$DATE, consume_df$PCEC96_PC1,
+     type = "l", lwd = 2,
+     xlab = "Date",
+     ylab = "Real Personal Consumption (% change YoY)",
+     main = "Personal Consumption Expenditures")
+abline(h = 0, lty = 2, col = "gray50")
+abline(h = mean(consume_df$PCEC96_PC1), 
+       col = "dodgerblue", lwd = 2)
+legend("bottomright",
+       legend = c("Data", "Mean", "Zero"),
+       col = c("black", "dodgerblue", "gray50"),
+       lty = c(1, 1, 2), lwd = c(2, 2, 1))
+```
+
+### Pre-2020
+```{r}
+#| code-fold: true
+pre_2020 <- consume_df$DATE < ymd("2020-01-01")
+plot(consume_df$DATE[pre_2020], consume_df$PCEC96_PC1[pre_2020],
+     xlim = range(consume_df$DATE),
+     type = "l", lwd = 2,
+     xlab = "Date",
+     ylab = "Real Personal Consumption (% change YoY)",
+     main = "Pre-2020 Data Only")
+abline(h = 0, lty = 2, col = "gray50")
+abline(h = mean(consume_df$PCEC96_PC1[pre_2020]), 
+       col = "dodgerblue", lwd = 2)
+```
+
+### Forecasting 2020
+```{r}
+#| code-fold: true
+pre_2020_data <- consume_df$PCEC96_PC1[pre_2020]
+mean_pre <- mean(pre_2020_data)
+sd_pre <- sd(pre_2020_data)
+
+plot(consume_df$DATE[pre_2020], consume_df$PCEC96_PC1[pre_2020],
+     xlim = range(consume_df$DATE),
+     ylim = range(consume_df$PCEC96_PC1) + c(-2, 2),
+     type = "l", lwd = 2,
+     xlab = "Date",
+     ylab = "Real Personal Consumption (% change YoY)",
+     main = "Naive Forecast for 2020-2024")
+abline(h = 0, lty = 2, col = "gray50")
+
+# Add forecast
+post_2020 <- !pre_2020
+segments(x0 = min(consume_df$DATE[post_2020]),
+         x1 = max(consume_df$DATE),
+         y0 = mean_pre, lwd = 3, col = "mediumseagreen")
+segments(x0 = min(consume_df$DATE[post_2020]),
+         x1 = max(consume_df$DATE),
+         y0 = mean_pre + 1.645*sd_pre,
+         lty = 2, lwd = 2, col = "mediumseagreen")
+segments(x0 = min(consume_df$DATE[post_2020]),
+         x1 = max(consume_df$DATE),
+         y0 = mean_pre - 1.645*sd_pre,
+         lty = 2, lwd = 2, col = "mediumseagreen")
+legend("bottomleft",
+       legend = c("Observed", "Forecast", "90% CI"),
+       col = c("black", "mediumseagreen", "mediumseagreen"),
+       lty = c(1, 1, 2), lwd = c(2, 3, 2))
+```
+
+**What happened?** Structural break (COVID-19) makes pre-2020 mean inappropriate!
+:::
+
+# Errors vs. Residuals
+
+## Important Distinction {.smaller}
+
+::: columns
+::: {.column width="50%"}
+**Forecast Errors** (true errors)
+
+$$e_{T+h} = y_{T+h} - \hat{y}_{T+h|T}$$
+
+- Unknown until future is observed
+- What we care about
+- Measure forecast accuracy
+- Can't compute until $y_{T+h}$ is known
+
+**Example**: 
+Forecast for 2025 made in 2024
+Can't compute error until 2025!
+:::
+
+::: {.column width="50%"}
+**Residuals** (in-sample errors)
+
+$$\hat{e}_t = y_t - \hat{y}_t$$
+
+- Computed on observed data
+- Training error
+- Used for model diagnostics
+- Available immediately
+
+**Example**: 
+"Prediction" for 2020 using full dataset including 2020
+Not a true forecast!
+:::
+:::
+
+::: {.callout-important}
+**Residuals b	  Forecast Errors!** Residuals underestimate true forecast error.
+:::
+
+## Why Residuals Matter
+
+Even though residuals aren't true forecast errors, they're useful for:
+
+::: {.fragment}
+1. **Model diagnostics**
+   - Should look like white noise (random)
+   - No patterns remaining
+   - Check autocorrelation
+:::
+
+::: {.fragment}
+2. **Estimating forecast uncertainty**
+   - Residual standard deviation b forecast interval width
+   - Assumes errors similar in-sample and out-of-sample
+:::
+
+::: {.fragment}
+3. **Model comparison**
+   - Lower residual variance often (not always) means better forecasts
+   - Need out-of-sample validation to be sure
+:::
+
+## Plotting Residuals
+```{r}
+#| code-fold: true
+#| fig-cap: "Residual plot for mean forecast"
+
+# Fit mean model on air passengers
+mean_model <- lm(air ~ 1)
+residuals <- residuals(mean_model)
+
+par(mfrow = c(1, 2))
+
+# Time series plot of residuals
+plot(residuals, 
+     type = "l",
+     ylab = "Residuals",
+     xlab = "Time",
+     main = "Residuals Over Time")
+abline(h = 0, col = "red", lty = 2)
+
+# Histogram of residuals
+hist(residuals,
+     breaks = 20,
+     main = "Distribution of Residuals",
+     xlab = "Residual",
+     col = "lightblue")
+
+par(mfrow = c(1, 1))
+```
+
+**What do you see?** Clear pattern in residuals b model is missing something (trend/seasonality)!
+
+# Summary and Next Steps
+
+## What We Learned Today {.smaller}
+
+::: {.nonincremental}
+1. **Loss functions** determine optimal forecasts
+   - Quadratic loss b mean
+   - Absolute loss b median
+
+2. **Risk minimization** provides theoretical foundation for forecasting
+
+3. **Forecast intervals** quantify uncertainty
+   - Depend on distribution assumptions
+   - Width depends on forecast horizon
+
+4. **Conditioning** on relevant information improves forecasts
+
+5. **Naive forecasts** serve as benchmarks
+   - Simple to compute
+   - Often hard to beat for short horizons
+   - Inappropriate when trends/seasonality present
+
+6. **Time series components**: Trend, Cycle, Season, Irregular
+
+7. **Residuals b	  Forecast errors** (important distinction!)
+:::
+
+## Next Class Preview {.smaller}
+
+**Topics for Week 3**:
+
+::: {.incremental}
+1. **Forecast Variance**
+   - How uncertainty increases with horizon
+   - Role of parameter uncertainty
+   - Simulation-based methods
+
+2. **Trend Models**
+   - Linear trends: $y_t = \beta_0 + \beta_1 t + \epsilon_t$
+   - Polynomial trends
+   - Exponential trends
+   
+3. **Structural Breaks**
+   - Intercept shifts (level changes)
+   - Trend breaks (slope changes)
+   - Testing for breaks
+
+4. **Forecast Evaluation**
+   - Out-of-sample testing
+   - Comparing forecast accuracy
+:::
+
+# Practice Problems
+
+## Problem 1: Optimal Forecasts {.smaller}
+
+Given the following probability distribution for tomorrow's stock return:
+
+| Return | Probability |
+|--------|-------------|
+| -10% | 0.2 |
+| 0% | 0.5 |
+| +15% | 0.3 |
+
+::: {.nonincremental}
+**a)** Calculate the expected return (optimal forecast under quadratic loss)
+
+**b)** What is the optimal forecast under absolute loss?
+
+**c)** Calculate the expected risk (variance) under quadratic loss
+
+**d)** If you forecast +5% instead of the optimal forecast, how much does your expected loss increase?
+:::
+
+## Problem 2: Forecast Intervals {.smaller}
+
+Monthly sales have mean \$100,000 and standard deviation \$20,000.
+
+::: {.nonincremental}
+**a)** Construct a 90% forecast interval (use $z_{0.05} = 1.645$)
+
+**b)** Construct a 95% forecast interval (use $z_{0.025} = 1.96$)
+
+**c)** How does the interval width change from 90% to 95%? Why?
+
+**d)** If sales are actually \$85,000, which interval successfully captured the truth?
+
+**e)** If standard deviation increases to \$30,000, how does the 95% interval change?
+:::
+
+## Problem 3: R Implementation {.smaller}
+
+Download monthly unemployment rate data from FRED (series: UNRATE).
+
+::: {.nonincremental}
+**a)** Split data: use 2000-2019 for training, 2020-2024 for testing
+
+**b)** Compute mean forecast using training data
+
+**c)** Calculate forecast errors for test period
+
+**d)** Compute Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE)
+
+**e)** Create a plot showing:
+   - Historical data
+   - Forecast period with point forecast
+   - 95% forecast interval
+   - Actual test data
+
+**f)** Does the forecast interval contain the actual 2020 recession spike? Discuss.
+:::
+
+## Problem 4: Conditioning {.smaller}
+
+Consider forecasting the number of umbrellas sold tomorrow.
+
+::: {.nonincremental}
+**a)** List 3 pieces of information that would likely **improve** your forecast (explain why)
+
+**b)** List 3 pieces of information that would likely **not help** your forecast
+
+**c)** If you condition on weather forecast (rain vs. no rain), how would you construct your forecast differently?
+
+**d)** Suppose historical data shows:
+   - Average sales on rainy days: 50 umbrellas
+   - Average sales on sunny days: 10 umbrellas  
+   - Probability of rain tomorrow: 60%
+   
+   What is your unconditional forecast? What if you know it will rain?
+:::
+
+## Resources and References {.smaller}
+
+**Textbooks**:
+
+- Hyndman & Athanasopoulos: [*Forecasting: Principles and Practice*](https://otexts.com/fpp3/) Ch. 1-3
+- Diebold: *Elements of Forecasting* Ch. 2-3
+- Hamilton: *Time Series Analysis* Ch. 1
+
+**R Packages**:
+```r
+library(forecast)    # Forecasting tools
+library(fpp3)        # Data and examples from textbook
+library(tsibble)     # Modern time series data structures
+```
+
+**Online Resources**:
+
+- [FRED Economic Data](https://fred.stlouisfed.org/)
+- [R for Data Science](https://r4ds.had.co.nz/) - Data manipulation
+- Course materials on Canvas
+
+## Questions?
+
+::: {.center}
+**Office Hours**: [TH/FR 2:30-4PM]
+
+**Email**: rsitti@odu.edu
+
+**Next Class**: Trend models and structural breaks
+:::
+
+::: {.callout-note}
+## Homework
+- Complete practice problems
+- Read: Hyndman & Athanasopoulos Ch. 3
+- Bring questions about your forecasting projects
+:::

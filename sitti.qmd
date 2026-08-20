@@ -1,30 +1,45 @@
 ---
 title: "Meet Your Instructor"
-editor: visual
 ---
 
 <!-- To add your photo: drop the file in images/ and uncomment the line below.
 ![Rex Sitti](images/rex-sitti.jpg){fig-alt="Photo of Rex Sitti" width="167"}
 -->
 
-Assistant Professor of Economics \| rsitti\@odu.edu \| [TODO: phone]
+**Rex Sitti** · Assistant Professor of Economics
+
+| | |
+|:--|:--|
+| Email | [rsitti@odu.edu](mailto:rsitti@odu.edu) |
+| Office | Constant 2033 |
+| Office Phone | 757-683-6126 |
+| Virtual Office Hours | Thursday and Friday, 2:30–4:00 pm ET, via Zoom |
+| | (in person by appointment) |
 
 ## About
 
-Rex Sitti is an Assistant Professor of Economics in the Strome College of Business at Old Dominion University, where he also contributes to the Dragas Center for Economic Analysis and Policy. His research spans urban economics, housing policy, homelessness, coastal flooding, and safety net programs. He joined the ODU faculty in Fall 2024 and previously held positions at the University of New Mexico, Michigan State University, and the University of Memphis. He holds a PhD from the University of New Mexico, an MBA from the University of Memphis, and a BCom from Kenyatta University.
-
-<!-- TODO: add publications, editorial roles, or media appearances if you want them here. -->
+Rex Sitti is an Assistant Professor of Economics in the Strome College of Business at Old
+Dominion University, where he also contributes to the Dragas Center for Economic Analysis and
+Policy. His research spans urban economics, housing policy, homelessness, coastal flooding,
+and safety net programs. He joined the ODU faculty in Fall 2024 and previously held positions
+at the University of New Mexico, Michigan State University, and the University of Memphis. He
+holds a PhD from the University of New Mexico, an MBA from the University of Memphis, and a
+BCom from Kenyatta University.
 
 ## Contact Policy
 
-Students should feel welcome to contact me via email at [rsitti\@odu.edu](mailto:rsitti@odu.edu){.email} or drop by Zoom office hours. I strongly encourage students to communicate with me. I will try to answer emails within 48 business hours (often much sooner) for course related topics.
+Students should feel welcome to contact me via email at
+[rsitti@odu.edu](mailto:rsitti@odu.edu) or join my virtual office hours. I respond to
+well-crafted emails within 24 business hours.
 
-Students should take the time to craft complete, professional emails. The more information that you can provide about a question or problem, the more likely that my response will be helpful. Avoid non-professional language and practice communicating in the corporate workplace.
+Students should take the time to craft complete, professional emails. The more information
+you can provide about a question or problem, the more likely that my response will be
+helpful. Avoid non-professional language and practice communicating in the corporate
+workplace.
 
-Students should proactively address issues with the class and scheduling rather than waiting until an assignment is overdue. In many cases, accommodations can be made for 'life events,' however, clear and prompt communication is necessary.
+When attending virtual office hours, join from a quiet location and be prepared with your
+specific question, your code, and the error message you are seeing.
 
-## Virtual Office Hours
-
-<!-- TODO: replace with your actual office hour schedule. -->
-
-Office hours are held by appointment via Zoom. Check the class announcements for the current schedule.
+Students should proactively address issues with the class and scheduling rather than waiting
+until an assignment is overdue. In an eight-week course there is very little room to recover,
+so contact me early.

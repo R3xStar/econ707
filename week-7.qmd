@@ -1,0 +1,23 @@
+---
+title: "Week 7: Multivariate Forecasting: VAR and Impulse Responses"
+---
+
+Treating several series as a system: vector autoregressions, lag selection, Granger causality, and reading impulse response functions.
+
+## Lecture Slides
+
+- [Vector Autoregression](slides/var_improved_12.html){target="_blank"}
+
+Slides open in a new tab. They are self-contained — use the arrow keys to move
+through them, and `Esc` for the slide overview.
+
+## Reading
+
+FPP3 Ch. 11
+
+## Due this week
+
+- Final Project
+
+Everything is due at **11:59 pm ET on the Sunday that closes the module week**,
+unless Canvas says otherwise.

@@ -1,88 +1,89 @@
-# ECON 707 / 807 — Course Site
+# ECON 707/807 — Econometrics II: Time Series and Forecasting
 
-Quarto book with interactive WebR examples, published to GitHub Pages from `docs/`.
+Course site for the eight-week accelerated session. Quarto book published to GitHub Pages
+from `docs/`.
 
-Live URL once published: **https://r3xstar.github.io/econ707/**
+**Live:** <https://r3xstar.github.io/econ707/>
 
 ---
 
-## What this is
+## What's here
 
-A mirror of the ECON 700 course site by Robert M. McNab (ODU), rebranded for ECON 707.
-The module content is still McNab's intro-statistics sequence — swap it out for your
-time-series material as you go. See **Attribution** below.
-
-## First-time setup: push to GitHub
-
-1. Create an **empty** repo on GitHub named `econ707` under the `R3xStar` account.
-   Do *not* add a README, .gitignore, or license — this folder already has a commit.
-
-2. From this folder:
-
-   ```bash
-   git remote add origin https://github.com/R3xStar/econ707.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-3. On GitHub: **Settings → Pages → Build and deployment**
-   - Source: *Deploy from a branch*
-   - Branch: `main`, folder: `/docs`
-   - Save. The site is live in a minute or two.
-
-`docs/.nojekyll` is already present, which stops GitHub from stripping the
-`_files/` asset folders Quarto generates.
-
-## Editing and re-rendering
-
-You need Quarto (bundled with recent RStudio) and these R packages:
-
-```r
-install.packages(c("tidyverse", "dplyr", "ggplot2", "kableExtra", "janitor",
-                   "lubridate", "scales", "moments", "gtools", "tidyquant",
-                   "censusapi"))
-```
-
-Then, in the project folder:
-
-```bash
-quarto render          # writes HTML into docs/
-git add -A && git commit -m "Update modules" && git push
-```
-
-Open `econ707.Rproj` in RStudio and use the **Build → Render Book** button if you
-prefer not to use the terminal.
-
-Note: a few chunks use `censusapi`, which needs a free Census API key. Either set
-`CENSUS_KEY` in your `.Renviron` or edit those chunks out.
-
-## File map
+A course hub, not a textbook. The eight week pages carry the topic, reading, and
+deliverables; the lecture slides are revealjs decks that open in their own tab.
 
 | Path | What it is |
 |---|---|
-| `_quarto.yml` | Book structure — parts, chapter order, WebR settings |
-| `index.qmd` | Home page with the module link list |
-| `sitti.qmd` | Instructor page — **has TODOs for your phone and office hours** |
-| `about.qmd` | Course objectives and textbooks — **still McNab's CLOs, rewrite these** |
-| `mod-N-M-*.qmd` | Module pages |
-| `docs/` | Rendered site (this is what GitHub Pages serves) |
-| `_extensions/coatless/webr` | The WebR filter that makes R chunks runnable in the browser |
-| `ECON-707-Syllabus.pdf` | Placeholder — replace with your syllabus, keep the filename, put a copy in `docs/` too |
+| `_quarto.yml` | Book structure — parts, chapter order, resources |
+| `index.qmd` | Home page: schedule table and start-here links |
+| `about.qmd` | Course information — objectives, texts, grading, policies |
+| `sitti.qmd` | Instructor page |
+| `week-1.qmd` … `week-8.qmd` | One page per module week |
+| `slides/` | **Rendered** lecture decks (`.html`), copied into `docs/slides/` on render |
+| `lecture-src/` | The `.qmd` sources for those decks |
+| `docs/` | The rendered site — this is what GitHub Pages serves |
+| `ECON-707-Syllabus.pdf` | The syllabus, also copied into `docs/` |
 
-## Still to do
+## Rendering
 
-- [ ] Replace `ECON-707-Syllabus.pdf` (root **and** `docs/`) with your syllabus
-- [ ] Fill in the TODOs in `sitti.qmd` (phone, office hours, optional photo in `images/`)
-- [ ] Rewrite `about.qmd` — the learning objectives and textbook list are McNab's
-- [ ] Replace module content with your time-series material (ARDL, VAR, ECM, cointegration)
-- [ ] Update `_quarto.yml` part names as the topics change
+The eleven book pages contain no R code, so plain Quarto renders the site with no R
+packages needed:
 
-## Attribution
+```bash
+quarto render
+```
 
-Content adapted from <https://robertmmcnab.github.io/econ700/> (source:
-<https://github.com/robertmmcnab/econ700>). That repository carries no license file,
-so reuse is not formally granted — worth a quick email to Bob McNab before this goes
-public, especially since he's in your department.
+The lecture decks are a separate matter. They are **not** rendered by `quarto render` —
+`lecture-src/` is excluded from the project. To update a deck, render it on its own and
+copy the result into `slides/`:
 
-Built with [Quarto](https://quarto.org) and the
-[coatless/quarto-webr](https://github.com/coatless/quarto-webr) extension.
+```bash
+quarto render lecture-src/var_improved_12.qmd
+cp lecture-src/var_improved_12.html slides/
+quarto render          # copies slides/ into docs/slides/
+```
+
+That requires the time-series packages the decks use (fpp3, forecast, vars, tsibble, and
+so on). Keeping the decks out of the main render means the site always builds even if a
+package is missing.
+
+## Publishing changes
+
+```
+edit → quarto render → commit → push
+```
+
+In GitHub Desktop: write a summary, "Commit to main", then "Push origin". Live in about a
+minute. Pages is set to deploy from branch `main`, folder `/docs`.
+
+## Known TODOs
+
+- [ ] Deck footers still read **"Spring 2026"** and their subtitles use the sixteen-week
+      numbering (ARMA is labelled Week 6, VAR is Week 12, etc.). The site maps them to the
+      correct eight-week modules, but the slides themselves say otherwise until you
+      re-render them from `lecture-src/`.
+- [ ] Add your photo: drop it in `images/` and uncomment the line in `sitti.qmd`.
+- [ ] Session dates — the syllabus and week pages say "Week 1", "Week 2" rather than
+      calendar dates. Add them once the session calendar is confirmed.
+- [ ] Week 8 currently links the Model Selection deck as review material. Move it if you'd
+      rather it sat with Week 4.
+
+## Deliberately not in this repo
+
+This is a public repository. The following were left out on purpose:
+
+- **Wooldridge publisher PowerPoints** (`FINAL files- from Hishma-copyedited`) — Cengage
+  instructor resources, not redistributable.
+- **Exams and homework** — answer keys do not belong on a public site. Keep them in Canvas.
+- **`trends_03.qmd`** — authored by Alex Cardazzi. Your own `trend_models_improved_3` is
+  used instead.
+- **Spatial econometrics** — not part of the eight-week schedule; per the syllabus it goes
+  in Canvas as optional enrichment.
+
+## Origin
+
+The site's scaffolding started from the ECON 700 Quarto site by Robert M. McNab
+(<https://github.com/robertmmcnab/econ700>). All of that content has since been replaced;
+what remains in common is the Quarto book format itself.
+
+Built with [Quarto](https://quarto.org).

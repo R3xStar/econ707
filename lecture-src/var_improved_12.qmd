@@ -1,0 +1,1286 @@
+---
+title: "Vector Autoregression"
+subtitle: "Week 12"
+author: "Rex Sitti"
+institute: "Old Dominion University"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: "https://ww1.odu.edu/facultystaff/communication/toolkit/current-logos/_jcr_content/par/section_1593932067/columns_527553970/column_2/image.img.440.jpg/1599596551953.jpg"
+    footer: "ECON 707/807: Econometrics II"
+    
+self-contained: true
+
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(out.width = '90%')
+
+par(mar = c(4.1, 4.1, 1.1, 4.1))
+set.seed(321)
+library("stargazer")
+library("lubridate")
+library("forecast")
+library("scales")
+library("tseries")
+library("vars")
+
+colorize <- function(x, color) {
+  if (knitr::is_latex_output()) {
+    sprintf("\\textcolor{%s}{%s}", color, x)
+  } else if (knitr::is_html_output()) {
+    sprintf("<span style='color: %s;'>%s</span>", color, x)
+  } else x
+}
+
+# ============================================================================
+# SYNTHETIC DATA GENERATORS - Slides work without external data files
+# ============================================================================
+
+generate_la_air_quality <- function() {
+  # Generate weekly LA air quality data (1970-1979, 508 weeks)
+  set.seed(456)
+  n <- 508
+  
+  # Weekly time series
+  dates <- seq(as.Date("1970-01-01"), by = "week", length.out = n)
+  
+  # Temperature: seasonal pattern
+  week_of_year <- as.numeric(format(dates, "%V"))
+  tempr <- 65 + 20 * sin(2 * pi * week_of_year / 52) + rnorm(n, 0, 5)
+  
+  # Particulates: correlated with temperature (inversions) + trend
+  part <- 50 + 0.3 * (tempr - 65) - 0.02 * (1:n) + rnorm(n, 0, 8)
+  part <- pmax(20, part)  # Keep positive
+  
+  # Mortality: increases with temperature extremes and pollution
+  temp_effect <- 0.5 * ((tempr - 65)^2) / 100
+  pollution_effect <- 0.3 * (part - 50) / 10
+  cmort <- 80 + temp_effect + pollution_effect + 
+    2 * sin(2 * pi * week_of_year / 52) + rnorm(n, 0, 5)
+  cmort <- pmax(60, cmort)
+  
+  # Return as time series objects
+  list(
+    cmort = ts(cmort, start = c(1970, 1), frequency = 52),
+    tempr = ts(tempr, start = c(1970, 1), frequency = 52),
+    part = ts(part, start = c(1970, 1), frequency = 52)
+  )
+}
+
+generate_aids_data <- function() {
+  # Generate monthly AIDS diagnoses and deaths (1987-1996)
+  set.seed(789)
+  n <- 120  # 10 years * 12 months
+  dates <- seq(as.Date("1987-01-01"), by = "month", length.out = n)
+  
+  # Diagnoses: rise then fall with AZT introduction
+  peak <- 60
+  diag <- 500 + 800 * exp(-((1:n - peak)^2) / 500) + rnorm(n, 0, 50)
+  diag <- pmax(100, diag)
+  
+  # Deaths: lag diagnoses by ~6-12 months
+  death <- numeric(n)
+  for(i in 13:n) {
+    death[i] <- 0.6 * diag[i-6] + 0.3 * diag[i-12] + rnorm(1, 0, 30)
+  }
+  death <- pmax(50, death)
+  death[1:12] <- NA  # Missing first year
+  
+  data.frame(
+    month = dates,
+    diag = round(diag),
+    deaths = round(death)
+  )
+}
+```
+
+## Learning Objectives
+
+By the end of this module, you should be able to:
+
+1. Understand when and why to use VAR models over univariate ARIMA
+2. Estimate VAR models and interpret system dynamics
+3. Use impulse response functions (IRFs) to trace shock propagation
+4. Apply variance decomposition to understand variable interactions
+5. Recognize and test for structural breaks in time series relationships
+
+## Topics
+
+- Vector Autoregression (VAR)
+- Impulse Response Functions
+- Variance Decomposition
+- Coefficient Dynamics & Structural Breaks
+
+# Motivation: The Feedback Problem
+
+## The Limitation of ARDL
+
+Recall Autoregressive Distributed Lag models:
+
+$$Y_t = \alpha_1 Y_{t-1} + \beta_1 X_{t-1} + e_t$$
+
+. . .
+
+**Problem**: This assumes $X$ "causes" $Y$, but $Y$ cannot influence $X$
+
+. . .
+
+**Real world**: Most economic variables have **bidirectional** relationships!
+
+- GDP ↔ Unemployment
+- Interest rates ↔ Inflation
+- Pollution ↔ Temperature
+- Diagnoses ↔ Deaths
+
+## The VAR Solution
+
+Allow **feedback** by modeling all variables as endogenous:
+
+$$\begin{align}
+Y_t &= \alpha_1 Y_{t-1} + \beta_1 X_{t-1} + e_{1t}\\
+X_t &= \alpha_2 Y_{t-1} + \beta_2 X_{t-1} + e_{2t}
+\end{align}$$
+
+. . .
+
+Now:
+- Past $X$ predicts future $Y$ ✓
+- Past $Y$ predicts future $X$ ✓
+- Both variables evolve together as a **system**
+
+## Historical Context
+
+Chris Sims's [Macroeconomics and Reality](https://www.jstor.org/stable/pdf/1912017.pdf) (1980) revolutionized empirical macroeconomics.
+
+. . .
+
+**Key insight**: Let the data speak rather than imposing restrictive economic theory
+
+- Traditional: Specify which variable is "exogenous"
+- VAR: Treat all variables symmetrically, let lags capture relationships
+
+. . .
+
+**Impact**: VAR became the workhorse model for:
+- Central bank forecasting
+- Policy analysis
+- Business cycle research
+
+# VAR Mechanics
+
+## The Challenge: Correlated Errors
+
+Since we're estimating a system, errors might be correlated!
+
+. . .
+
+**Solution**: Decompose into orthogonal (independent) shocks
+
+$$\begin{align} 
+e_{1t} &= u_{1t} \\
+e_{2t} &= \rho e_{1t} + u_{2t} = \rho u_{1t} + u_{2t}
+\end{align}$$
+
+where $u_{1t}$ and $u_{2t}$ are independent.
+
+## Ordering and Identification
+
+The full system becomes:
+
+$$\begin{align}
+Y_t &= \alpha_1 Y_{t-1} + \beta_1 X_{t-1} + u_{1t}\\
+X_t &= \alpha_2 Y_{t-1} + \beta_2 X_{t-1} + \rho u_{1t} + u_{2t}
+\end{align}$$
+
+. . .
+
+**Critical**: Variable ordering matters!
+
+- Shock to $Y$ impacts both $Y$ and $X$ **immediately**
+- Shock to $X$ only affects $Y$ next period (through lag)
+
+. . .
+
+**Interpretation**: Variable listed first is "more exogenous"
+
+## Ordering Examples
+
+**Monetary Policy VAR** (common ordering):
+1. GDP → affects everything with delay
+2. Inflation → central banks respond to it
+3. Interest rate → policy tool (responds fastest)
+
+. . .
+
+**Environmental Health VAR**:
+1. Pollution → external process
+2. Temperature → responds to pollution/weather
+3. Mortality → responds to both
+
+. . .
+
+**Rule of thumb**: More exogenous/slow-moving variables first
+
+# Estimating VAR in R
+
+## The `vars` Package
+
+Main functions ([reference manual](https://cran.r-project.org/web/packages/vars/vars.pdf)):
+
+```r
+VAR()         # Estimate VAR model
+VARselect()   # Choose optimal lag length
+irf()         # Impulse response functions
+fevd()        # Forecast error variance decomposition
+predict()     # Forecasting
+restrict()    # Restricted VAR (drop insignificant lags)
+```
+
+## VAR() Function
+
+Key arguments:
+
+- `y`: Dataset (must be `ts` object)
+- `p`: Number of lags
+- `type`: "none", "const", "trend", "both"
+- `season`: Integer for seasonal dummies (e.g., 52 for weekly)
+- `exogen`: Exogenous variables (no feedback)
+
+. . .
+
+```r
+VAR(y = data,           # Time series object
+    p = 2,              # 2 lags
+    type = "const",     # Include constant
+    season = NULL)      # No seasonal dummies
+```
+
+# Simulated VAR Example
+
+## Generate Bivariate VAR Data {.smaller}
+
+```{r}
+#| code-fold: show
+# True DGP: VAR(2) with feedback
+N <- 200
+y <- rep(0, N)
+x <- rep(0, N)
+
+# Correlated shocks (y shock affects both)
+shocksy <- rnorm(N, sd = 0.2)
+shocksx <- 0.5*shocksy + rnorm(N, sd = 0.2)
+
+for(i in 3:N){
+  # Y equation: depends on own lags and X lags
+  y[i] <- 0.4*y[i-1] - 0.2*y[i-2] - 0.3*x[i-1] + 0.6*x[i-2] + shocksy[i]
+  
+  # X equation: depends on own lags and Y lags (feedback!)
+  x[i] <- 0.5*y[i-1] - 0.5*y[i-2] + 0.5*x[i-1] + 0.4*x[i-2] + shocksx[i]
+}
+
+sim <- ts(cbind(y, x), start = 1, frequency = 1)
+head(sim)
+```
+
+## Visualize the Data {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+plot(y, type = "l", main = "Series Y", ylab = "Y")
+plot(x, type = "l", main = "Series X", ylab = "X")
+par(mfrow = c(1, 1))
+```
+
+Both series show autocorrelation and appear stationary.
+
+## Check Stationarity {visibility="uncounted"}
+
+```{r results='hold'}
+#| code-fold: show
+adf.test(sim[,"y"])
+adf.test(sim[,"x"])
+```
+
+Both reject unit root → proceed with VAR in levels.
+
+## Examine Cross-Correlations {visibility="uncounted" .smaller}
+
+::: {.panel-tabset}
+
+### ACF
+```{r}
+#| code-fold: true
+acf(sim, main = "Autocorrelation Function")
+```
+
+### PACF
+```{r}
+#| code-fold: true
+pacf(sim, main = "Partial Autocorrelation Function")
+```
+
+:::
+
+Off-diagonal ACF shows cross-correlation between series.
+
+## Select Lag Length {visibility="uncounted"}
+
+```{r}
+#| code-fold: show
+lagz <- VARselect(sim, lag.max = 8)
+lagz$selection
+```
+
+AIC suggests 2 lags → matches true DGP!
+
+## Estimate VAR(2) {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# True model:
+# y[i] <- 0.4*y[i-1] - 0.2*y[i-2] - 0.3*x[i-1] + 0.6*x[i-2] + shocksy[i]
+# x[i] <- 0.5*y[i-1] - 0.5*y[i-2] + 0.5*x[i-1] + 0.4*x[i-2] + shocksx[i]
+
+reg <- VAR(sim, p = 2, type = "none")  # No constant (matches DGP)
+summary(reg)
+```
+
+## Interpreting VAR Output {visibility="uncounted"}
+
+**Y equation**: Past values of both Y and X predict Y
+- `y.l1` (0.39) ≈ true 0.4 ✓
+- `x.l1` (-0.30) ≈ true -0.3 ✓
+
+**X equation**: Past values of both Y and X predict X
+- `y.l1` (0.48) ≈ true 0.5 ✓
+- `x.l2` (0.39) ≈ true 0.4 ✓
+
+. . .
+
+**But how do we interpret system dynamics?**
+
+→ Use **Impulse Response Functions**!
+
+# Impulse Response Functions
+
+## What are IRFs?
+
+**Question**: If we shock variable $X$ today, how does variable $Y$ respond over time?
+
+. . .
+
+**IRF traces**:
+- Immediate impact (period 0)
+- Short-run dynamics (periods 1-5)
+- Long-run effects (periods 10+)
+- Speed of convergence back to equilibrium
+
+. . .
+
+**Why useful?**
+- Individual coefficients hard to interpret
+- IRFs show total accumulated effect
+- Visualize shock propagation through system
+
+## Computing IRFs
+
+```r
+irf(x,                    # Fitted VAR object
+    impulse = "y",        # Which variable to shock
+    response = "x",       # Which variable's response to track
+    n.ahead = 10,         # Forecast horizon
+    ortho = TRUE,         # Use orthogonal shocks
+    cumulative = FALSE)   # Show levels (not cumulative)
+```
+
+## IRF: Shock to Y → Y Response {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+impulse <- irf(reg, impulse = "y", response = "y", n.ahead = 10)
+plot(impulse, main = "Response of Y to Y Shock")
+```
+
+One-unit shock to Y → Y increases immediately, persists for ~5 periods.
+
+## IRF: Shock to Y → X Response {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+impulse <- irf(reg, impulse = "y", response = "x", n.ahead = 10)
+plot(impulse, main = "Response of X to Y Shock")
+```
+
+Shock to Y → X increases next period (feedback effect).
+
+## IRF: Shock to X → Y Response {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+impulse <- irf(reg, impulse = "x", response = "y", n.ahead = 10)
+plot(impulse, main = "Response of Y to X Shock")
+```
+
+Shock to X → Y responds negatively (negative coefficient in Y equation).
+
+## IRF: Shock to X → X Response {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+impulse <- irf(reg, impulse = "x", response = "x", n.ahead = 10)
+plot(impulse, main = "Response of X to X Shock")
+```
+
+Shock to X → X increases immediately, gradually decays.
+
+## IRF Interpretation Guide
+
+**Reading IRFs**:
+
+1. **Point estimate** (solid line): Expected response path
+2. **Confidence bands** (dashed): Uncertainty around estimate
+3. **Zero crossing**: When effect becomes insignificant
+4. **Persistence**: How long shock matters
+
+. . .
+
+**Key questions**:
+- Does response become significant?
+- How long does effect last?
+- Does variable overshoot/oscillate?
+- What's the cumulative effect?
+
+# Variance Decomposition
+
+## What is FEVD?
+
+**Forecast Error Variance Decomposition** answers:
+
+> "What % of forecast error variance in Y is due to shocks in X?"
+
+. . .
+
+**Interpretation**:
+- High % → X is important for predicting Y
+- Low % → Y mostly driven by its own shocks
+- Changes over horizon → short vs long-run drivers differ
+
+## FEVD for Simulated Data {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+plot(fevd(reg), main = "Variance Decomposition")
+```
+
+**Y decomposition**: Mostly own shocks (~80%), some X influence
+
+**X decomposition**: Y shocks matter more (~40%) → strong feedback
+
+# Forecasting with VAR
+
+## VAR Forecasting
+
+VAR forecasts all variables simultaneously:
+
+```r
+predict(var_model,      # Fitted VAR
+        n.ahead = 20,   # Forecast horizon
+        ci = 0.95)      # Confidence level
+```
+
+. . .
+
+**Advantages over univariate**:
+- Uses cross-variable information
+- Consistent system forecasts
+- Respects dynamic interactions
+
+## Forecast Simulation {visibility="uncounted" .smaller}
+
+::: {.panel-tabset}
+
+### Y Forecast
+
+```{r}
+#| code-fold: true
+pred <- predict(reg, n.ahead = 20)
+plot(y, type = "l", xlim = c(1, N + 20), main = "Y Forecast")
+lines((N+1):(N+20), pred$fcst$y[,1], col = "tomato", lwd = 2)
+lines((N+1):(N+20), pred$fcst$y[,2], col = "tomato", lty = 2)
+lines((N+1):(N+20), pred$fcst$y[,3], col = "tomato", lty = 2)
+legend("topright", legend = c("Actual", "Forecast", "95% CI"),
+       col = c("black", "tomato", "tomato"),
+       lty = c(1, 1, 2), bty = "n")
+```
+
+### X Forecast
+
+```{r}
+#| code-fold: true
+plot(x, type = "l", xlim = c(1, N + 20), main = "X Forecast")
+lines((N+1):(N+20), pred$fcst$x[,1], col = "tomato", lwd = 2)
+lines((N+1):(N+20), pred$fcst$x[,2], col = "tomato", lty = 2)
+lines((N+1):(N+20), pred$fcst$x[,3], col = "tomato", lty = 2)
+legend("topright", legend = c("Actual", "Forecast", "95% CI"),
+       col = c("black", "tomato", "tomato"),
+       lty = c(1, 1, 2), bty = "n")
+```
+
+### Fanchart
+
+```{r}
+#| code-fold: true
+fanchart(pred, names = "x", main = "X Forecast with Uncertainty")
+```
+
+:::
+
+# Application: LA Air Quality
+
+## LA Air Quality Data {.smaller}
+
+Weekly data from Los Angeles County (1970-1979):
+
+- **Mortality** (`cmort`): Cardiovascular deaths
+- **Temperature** (`tempr`): Weekly average temp (°F)
+- **Particulates** (`part`): Air pollution measure
+
+. . .
+
+```{r}
+#| code-fold: show
+# Load or generate data
+# Real data: from astsa package (cmort, tempr, part)
+# Synthetic data:
+la_data <- generate_la_air_quality()
+cmort <- la_data$cmort
+tempr <- la_data$tempr
+part <- la_data$part
+```
+
+**Research question**: How do pollution and temperature affect mortality?
+
+## Visualize LA Data {visibility="uncounted" .smaller}
+
+::: {.panel-tabset}
+
+### Mortality
+
+```{r}
+#| code-fold: true
+plot(cmort, main = "Cardiovascular Mortality",
+     ylab = "Deaths per 100k", xlab = "Year")
+```
+
+### Temperature
+
+```{r}
+#| code-fold: true
+plot(tempr, main = "Average Temperature",
+     ylab = "Degrees F", xlab = "Year")
+```
+
+### Pollution
+
+```{r}
+#| code-fold: true
+plot(part, main = "Particulate Pollution",
+     ylab = "Particulates", xlab = "Year")
+```
+
+:::
+
+All show clear seasonality (summer peaks).
+
+## Check Stationarity {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+adf.test(cmort)
+adf.test(tempr)
+adf.test(part)
+```
+
+All series are stationary → proceed with VAR.
+
+## Variable Ordering Decision {visibility="uncounted"}
+
+**Key choice**: What order for variables?
+
+. . .
+
+**Option 1**: Mortality → Temperature → Particulates
+- Deaths most endogenous (respond to environment)
+- Less plausible
+
+. . .
+
+**Option 2**: Particulates → Temperature → Mortality
+- Pollution driven by external factors (cars, industry)
+- Temperature partly responds to pollution (inversions)
+- Mortality responds to both environmental factors
+- **More plausible** ✓
+
+## Prepare LA Data {visibility="uncounted"}
+
+```{r}
+#| code-fold: show
+# Combine into multivariate time series
+# Order: Particulates → Temperature → Mortality
+la <- ts.union(part = part,
+               tempr = tempr,
+               cmort = cmort)
+
+head(la, 10)
+```
+
+**Ordering assumptions**:
+- Shock to particulates → affects particulates, temp, mortality
+- Shock to temperature → affects temperature, mortality
+- Shock to mortality → affects only mortality
+
+## Examine LA Correlations {visibility="uncounted" .smaller}
+
+::: {.panel-tabset}
+
+### ACF
+```{r}
+#| code-fold: true
+acf(la, lag.max = 52, main = "LA Air Quality ACF")
+```
+
+### PACF
+```{r}
+#| code-fold: true
+pacf(la, lag.max = 52, main = "LA Air Quality PACF")
+```
+
+:::
+
+Strong seasonality (52-week pattern) and cross-correlations visible.
+
+## Select Lag Length {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Select lags accounting for seasonality
+lagz <- VARselect(la,
+                  lag.max = 26,   # Test up to half-year lags
+                  season = 52)    # Include seasonal dummies
+lagz$selection
+```
+
+AIC/FPE suggest 5 lags.
+
+## Estimate LA VAR Model {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Estimate VAR(5) with trend and seasonal dummies
+reg_la <- VAR(la,
+              p = 5,            # 5 lags
+              type = "both",    # Constant + trend
+              season = 52)      # Weekly seasonal dummies
+
+summary(reg_la)
+```
+
+## Interpreting LA Results {visibility="uncounted"}
+
+**Many coefficients!** (5 lags × 3 variables × 3 equations = 45 params)
+
+. . .
+
+**Instead of interpreting individual coefficients**:
+- Use IRFs to understand shock transmission
+- Use FEVD to quantify variable importance
+- Focus on economically meaningful questions
+
+. . .
+
+**Better questions**:
+- If pollution spikes, how does mortality respond?
+- How long do temperature effects last?
+- What drives mortality variation: own history, pollution, or temperature?
+
+## LA Impulse Responses {visibility="uncounted" .smaller}
+
+View interactively in RStudio:
+
+```{r eval=FALSE}
+#| code-fold: show
+impulse_la <- irf(reg_la, n.ahead = 20)
+plot(impulse_la)
+```
+
+**Key findings** (from 9 IRF plots):
+- Pollution shock → mortality increases after 2-3 weeks
+- Temperature shock → immediate mortality response
+- Effects persist 3-6 weeks before dissipating
+
+## LA Variance Decomposition {visibility="uncounted" .smaller}
+
+```{r eval=FALSE}
+#| code-fold: show
+fevd_la <- fevd(reg_la, n.ahead = 20)
+plot(fevd_la)
+```
+
+**Mortality decomposition**:
+- Short run: Mostly own shocks (~80%)
+- Long run: Temperature and pollution matter more (~30%)
+- Suggests environmental factors important but mortality has inertia
+
+## Forecasting LA Mortality {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Forecast 26 weeks ahead (half year)
+H <- 26
+pred_la <- predict(reg_la, n.ahead = H)
+
+# Create time sequence for forecast
+xlimz <- c(min(time(cmort)), max(time(cmort)) + (H/52))
+xz <- seq(max(time(cmort)) + (1/52), max(time(cmort)) + (H/52), 1/52)
+```
+
+## LA Forecasts: Mortality {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: true
+plot(cmort, xlim = xlimz, main = "Mortality Forecast",
+     ylab = "Deaths", xlab = "Year")
+lines(xz, pred_la$fcst$cmort[,1], col = "tomato", lwd = 2)
+lines(xz, pred_la$fcst$cmort[,2], col = "tomato", lty = 2)
+lines(xz, pred_la$fcst$cmort[,3], col = "tomato", lty = 2)
+legend("topright", legend = c("Actual", "Forecast", "95% CI"),
+       col = c("black", "tomato", "tomato"), lty = c(1, 1, 2), bty = "n")
+```
+
+## LA Forecasts: All Variables {visibility="uncounted" .smaller}
+
+::: {.panel-tabset}
+
+### Temperature
+```{r}
+#| code-fold: true
+plot(tempr, xlim = xlimz, main = "Temperature Forecast")
+lines(xz, pred_la$fcst$tempr[,1], col = "tomato", lwd = 2)
+```
+
+### Pollution
+```{r}
+#| code-fold: true
+plot(part, xlim = xlimz, main = "Particulate Forecast")
+lines(xz, pred_la$fcst$part[,1], col = "tomato", lwd = 2)
+```
+
+:::
+
+Forecasts capture seasonal patterns and relationships.
+
+# Application: AIDS Deaths
+
+## AIDS Forecasting Challenge {.smaller}
+
+Recall from Week 11: Can we beat univariate ARIMA using diagnoses?
+
+. . .
+
+**Previous approach**: ARDL with lagged diagnoses
+
+**This week**: VAR allowing diagnoses ↔ deaths feedback
+
+. . .
+
+```{r}
+#| code-fold: show
+# Generate or load AIDS data
+tmp3 <- generate_aids_data()
+
+# Aggregate and prepare
+tmp <- aggregate(list(death = tmp3$deaths, diag = tmp3$diag),
+                 list(month = tmp3$month), sum, na.rm = TRUE)
+tmp$death <- ifelse(tmp$death == 0, NA, tmp$death)
+tmp$diag <- ifelse(tmp$diag == 0, NA, tmp$diag)
+tmp <- tmp[year(tmp$month) >= 1987,]
+
+# Split train/test at 1994-04-01
+lim1 <- tmp$month <= ymd("1994-04-01") & !is.na(tmp$death)
+```
+
+## Baseline: ARIMA Forecast {visibility="uncounted" .smaller}
+
+```{r echo=FALSE}
+# Helper function for plotting
+plot_all <- function(){
+  plot(tmp$month, tmp$diag, type = "n",
+       xlab = "Month", ylab = "Count",
+       xlim = c(min(tmp$month), ymd("1999-01-01")),
+       main = "AIDS Deaths: Forecast Comparison")
+  lines(tmp$month[lim1], tmp$diag[lim1], col = "black", lwd = 2)
+  lines(tmp$month[lim1], tmp$death[lim1], col = "dodgerblue", lwd = 2)
+  abline(v = ymd("1994-04-15"), lty = 2)
+  legend("topright", bty = "n", col = c("black", "dodgerblue"), lty = 1,
+         legend = c("Diagnoses", "Deaths (train)"), lwd = 2)
+}
+
+# Fit ARIMA benchmark
+aids_ts <- ts(tmp[lim1, c("diag", "death")],
+              start = c(min(year(tmp$month[lim1]))),
+              frequency = 12)
+
+reg_arima <- auto.arima(aids_ts[,"death"])
+H <- 24
+pred_arima <- predict(reg_arima, n.ahead = H)
+
+# Plot
+plot_all()
+lines(tmp$month[!lim1][1:H], pred_arima$pred,
+      col = "tomato", lwd = 2)
+lines(tmp$month[!lim1][1:H], tmp$death[!lim1][1:H],
+      col = "mediumseagreen", lwd = 2)
+legend("bottomright", bty = "n", lwd = 2,
+       col = c("tomato", "mediumseagreen"), lty = 1,
+       legend = c("ARIMA Forecast", "Actual Deaths"))
+```
+
+ARIMA misses the declining trend (doesn't use diagnoses info).
+
+## AIDS VAR Setup {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Select optimal lag length
+lagz_aids <- VARselect(aids_ts, lag.max = 36)
+lagz_aids$selection
+```
+
+AIC suggests 26 lags, but this creates estimation problems (too many parameters).
+
+**Better choice**: Use 12 lags (1 year) for stable estimation and interpretability.
+
+## Estimate AIDS VAR {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# VAR with reasonable lags to avoid overfitting
+# Note: AIC suggested 26, but that's too many parameters for sample size
+# Use 12 lags (1 year) as more stable choice
+reg_var <- VAR(aids_ts, p = 12, type = "const")  # Constant only (no trend)
+
+# Try to restrict to significant coefficients
+reg_var_restricted <- tryCatch({
+  restrict(reg_var, method = "ser")
+}, error = function(e) {
+  message("Note: Automatic restriction failed, using full model")
+  reg_var
+})
+
+# Display results (with error handling)
+tryCatch({
+  summary(reg_var_restricted)
+}, error = function(e) {
+  message("Note: Summary failed, showing model structure instead")
+  print(reg_var_restricted)
+})
+```
+
+If restriction succeeds, model drops many insignificant lags for parsimony.
+
+**Lag Selection Lesson**: AIC often suggests more lags than are practically useful. Consider:
+- Sample size constraints (need 3-5 obs per parameter)
+- Interpretability (12 lags = 1 year makes sense)
+- Forecast stability (fewer lags often forecast better)
+
+## AIDS VAR Forecast {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: true
+# Forecast using the (possibly restricted) model
+pred_var <- predict(reg_var_restricted, n.ahead = H)
+
+plot_all()
+lines(tmp$month[!lim1][1:H], pred_var$fcst$death[,1],
+      col = "tomato", lwd = 2)
+lines(tmp$month[!lim1][1:H], tmp$death[!lim1][1:H],
+      col = "mediumseagreen", lwd = 2)
+legend("bottomright", bty = "n", lwd = 2,
+       col = c("tomato", "mediumseagreen"), lty = 1,
+       legend = c("VAR Forecast", "Actual Deaths"))
+```
+
+VAR captures the decline better!
+
+## Forecast Accuracy Comparison {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: show
+# Mean Absolute Percentage Error
+mape <- function(actual, forecast) {
+  mean(abs((actual - forecast) / actual)) * 100
+}
+
+# Compare models
+actual_deaths <- tmp$death[!lim1][1:H]
+cbind(
+  VAR = round(mape(actual_deaths, pred_var$fcst$death[,1]), 2),
+  ARIMA = round(mape(actual_deaths, pred_arima$pred), 2),
+  Average = round(mape(actual_deaths,
+                       (pred_var$fcst$death[,1] + pred_arima$pred)/2), 2)
+)
+```
+
+**VAR wins!** Even better: average both forecasts (forecast combination).
+
+## Model Averaging {visibility="uncounted" .smaller}
+
+```{r}
+#| code-fold: true
+plot_all()
+lines(tmp$month[!lim1][1:H],
+      (pred_arima$pred + pred_var$fcst$death[,1])/2,
+      col = "tomato", lwd = 3)
+lines(tmp$month[!lim1][1:H], pred_arima$pred,
+      col = alpha("grey", 0.6), lwd = 2)
+lines(tmp$month[!lim1][1:H], pred_var$fcst$death[,1],
+      col = alpha("orchid", 0.6), lwd = 2)
+lines(tmp$month[!lim1][1:H], tmp$death[!lim1][1:H],
+      col = "mediumseagreen", lwd = 3)
+legend("topright", bty = "n", lwd = 2,
+       col = c("tomato", "grey", "orchid", "mediumseagreen"),
+       legend = c("Average", "ARIMA", "VAR", "Actual"))
+```
+
+# Coefficient Dynamics
+
+## The Stability Assumption
+
+**So far**: We've assumed relationships are constant over time
+
+$$Y_t = \beta X_t + e_t \quad \text{(same } \beta \text{ always)}$$
+
+. . .
+
+**Reality**: Economic relationships evolve!
+
+- Weight vs Height (NBA player size evolution)
+- Unemployment vs Inflation (Phillips Curve breakdown)
+- Policy effectiveness (regime changes)
+
+## Phillips Curve Example
+
+<center>
+<iframe src="https://fred.stlouisfed.org/graph/graph-landing.php?g=WtqU&width=960&height=500" scrolling="no" frameborder="0" style="width:960px; height:500px;" allowTransparency="true" loading="lazy" data-external="1"></iframe>
+</center>
+
+Relationship between unemployment and inflation not stable over time!
+
+## Tools for Testing Stability
+
+Two main approaches:
+
+1. **Chow Break Test** (package: `strucchange`)
+   - Test for breaks at known/suspected dates
+   - Identify optimal break points
+
+2. **Rolling Regression** (can use base R or packages like `roll` or `runner`)
+   - Estimate model over moving windows
+   - Visualize coefficient evolution
+
+## Chow Break Test {.smaller}
+
+**Idea**: Test if coefficients differ before vs after a break point
+
+. . .
+
+**Test statistic**:
+
+$$F = \frac{(RSS_{pooled} - (RSS_1 + RSS_2))/k}{(RSS_1 + RSS_2)/(N_1 + N_2 - 2k)}$$
+
+where:
+- $RSS_{pooled}$: Full sample residual sum of squares
+- $RSS_1$, $RSS_2$: Subsample RSS before/after break
+- $k$: Number of regressors
+
+## Simulated Break Example {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+# Generate data with structural break at t=80
+N <- 200
+x <- rnorm(N)
+t1 <- 1:N
+t2 <- c(rep(0, 0.4*N), 1:(0.6*N))  # Kink at 40% point
+
+# Y changes relationship after break
+y <- 3*x + t1 - t2 + rnorm(N)
+
+plot(t1, y, type = "l", main = "Series with Structural Break",
+     xlab = "Time", ylab = "Y")
+abline(v = 80, col = "red", lty = 2)
+text(80, max(y), "Break?", pos = 4, col = "red")
+```
+
+## Test for Break at t=80 {visibility="uncounted"}
+
+```{r}
+#| code-fold: show
+library(strucchange)
+sctest(y ~ x, type = "Chow", point = 80)
+```
+
+Strong evidence of structural break! (p < 0.001)
+
+## Finding the Break Point {visibility="uncounted" .smaller}
+
+If you don't know when the break occurred:
+
+```{r}
+#| code-fold: show
+# Test every potential break point (exclude ends)
+break_stats <- sapply(20:180, function(i) {
+  sctest(y ~ x, type = "Chow", point = i)$statistic
+})
+```
+
+## Visualize Break Detection {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+plot(20:180, break_stats, type = "b", pch = 19,
+     xlab = "Potential Break Point", ylab = "Chow Statistic",
+     main = "Identifying Structural Break")
+abline(v = 80, col = "red", lty = 2)
+text(80, max(break_stats), "True Break", pos = 4, col = "red")
+```
+
+Peak at t=80 identifies the true break point!
+
+## Using Break Tests
+
+**Practical applications**:
+
+1. **Sample selection**: Stop analysis before known policy change
+2. **Break modeling**: Include dummies/interactions for regime shifts
+3. **Model validation**: Test if relationship stable over evaluation period
+
+. . .
+
+**Example uses**:
+- Pre vs post-Great Recession
+- Policy implementation dates
+- Technology adoption thresholds
+
+# Rolling Regression
+
+## Rolling Regression Concept
+
+Estimate model repeatedly over moving windows:
+
+**Shifting window**: Fixed width, moves forward
+```
+[Window 1: t=1 to 25]
+    [Window 2: t=2 to 26]
+        [Window 3: t=3 to 27]
+```
+
+**Expanding window**: Grows over time
+```
+[Window 1: t=1 to 25]
+[Window 2: t=1 to 26]
+[Window 3: t=1 to 27]
+```
+
+## Rolling Regression in R
+
+**Simple base R implementation** (no packages needed):
+
+```{r eval=FALSE}
+#| code-fold: show
+# Rolling coefficient function
+rolling_coef <- function(y, x, width, expanding = FALSE) {
+  n <- length(y)
+  coefs <- matrix(NA, nrow = n - width + 1, ncol = 2)
+  
+  for(i in width:n) {
+    if(expanding) {
+      idx <- 1:i              # Expanding: use all data from start
+    } else {
+      idx <- (i-width+1):i    # Shifting: use last 'width' obs
+    }
+    fit <- lm(y[idx] ~ x[idx])
+    coefs[i - width + 1, ] <- coef(fit)
+  }
+  return(coefs)
+}
+
+# Use it
+coefficients <- rolling_coef(y, x, width = 25, expanding = FALSE)
+```
+
+**Alternatives**: Packages like `roll`, `runner`, or `slider` offer more features.
+
+## Rolling Regression Example {visibility="uncounted"}
+
+```{r}
+#| code-fold: show
+# Simple rolling regression function (no extra packages needed)
+rolling_coef <- function(y, x, width, expanding = FALSE) {
+  n <- length(y)
+  coefs <- matrix(NA, nrow = n - width + 1, ncol = 2)
+  colnames(coefs) <- c("(Intercept)", "x")
+  
+  for(i in width:n) {
+    if(expanding) {
+      # Expanding window: use all data from start to i
+      idx <- 1:i
+    } else {
+      # Shifting window: use last 'width' observations
+      idx <- (i - width + 1):i
+    }
+    fit <- lm(y[idx] ~ x[idx])
+    coefs[i - width + 1, ] <- coef(fit)
+  }
+  return(coefs)
+}
+
+# Estimate with both window types
+r_shift <- rolling_coef(y, t1, width = 25, expanding = FALSE)
+r_expand <- rolling_coef(y, t1, width = 25, expanding = TRUE)
+```
+
+## Visualize Coefficient Evolution {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+
+# Shifting window - coefficient on t1 (second column after intercept)
+plot(r_shift[,"x"], type = "b", pch = 19,
+     main = "Shifting Window", ylim = c(-0.1, 1.1),
+     xlab = "Time", ylab = "Coefficient on t1")
+abline(h = c(0, 1), lty = 2, col = "grey")
+
+# Expanding window
+plot(r_expand[,"x"], type = "b", pch = 19,
+     main = "Expanding Window", ylim = c(-0.1, 1.1),
+     xlab = "Time", ylab = "Coefficient on t1")
+abline(h = c(0, 1), lty = 2, col = "grey")
+
+par(mfrow = c(1, 1))
+```
+
+Shifting window detects break faster; expanding window shows gradual adjustment.
+
+## When to Use Each Tool
+
+| Tool | Best for | Limitation |
+|------|----------|------------|
+| **Chow Test** | Known break dates; Single break | Requires break point specification |
+| **Rolling Regression** | Unknown breaks; Gradual changes | Computationally intensive; harder to test |
+
+. . .
+
+**Best practice**: Use both!
+1. Rolling regression to visualize dynamics
+2. Chow test to formally test suspected breaks
+
+## VAR and Structural Breaks
+
+**Important**: VAR coefficients can also break!
+
+- Monetary policy regime changes
+- Technological shocks
+- Financial crises
+
+. . .
+
+**Solutions**:
+1. Split sample around known breaks
+2. Include structural break dummies
+3. Use Time-Varying Parameter VAR (advanced)
+
+# Summary and Best Practices
+
+## When to Use VAR
+
+**Use VAR when**:
+- Multiple endogenous variables with feedback
+- Interested in system dynamics (not just Y on X)
+- Want to trace shock transmission
+- Need coherent multivariate forecasts
+
+. . .
+
+**Don't use VAR when**:
+- Clear exogenous/endogenous distinction
+- Small sample (VAR has many parameters!)
+- Variables have very different frequencies
+
+## VAR Workflow
+
+1. **Check stationarity** → Transform if needed
+2. **Choose variable ordering** → Use economic reasoning
+3. **Select lag length** → Use VARselect()
+4. **Estimate model** → VAR()
+5. **Simplify** → Consider restrict() for parsimony
+6. **Interpret dynamics** → Use irf() and fevd()
+7. **Validate** → Check residuals, test for breaks
+8. **Forecast** → predict()
+
+## Common Pitfalls
+
+❌ **Arbitrary ordering** → Affects contemporaneous effects
+
+❌ **Ignoring stationarity** → Spurious dynamics
+
+❌ **Over-interpretation of individual coefficients** → Use IRFs!
+
+❌ **Too many lags** → Overfitting, poor forecasts, numerical instability (need 3-5 obs per parameter)
+
+❌ **Assuming stability** → Test for structural breaks
+
+## Key Takeaways
+
+1. **VAR captures feedback** between variables
+2. **Ordering matters** for contemporaneous effects
+3. **IRFs reveal dynamics** better than raw coefficients
+4. **FEVD quantifies** relative importance
+5. **Structural breaks** can invalidate VAR relationships
+6. **Rolling regression** helps detect instability
+
+## Next Steps
+
+::: {.nonincremental}
+
+**Week 13 (11/30)**:
+
+- Spatial Autocorrelation
+- Project consultations
+
+**Week 14 (12/7)**:
+
+- Final Project Presentations
+
+:::
+
+**Today**: Please submit project data if you haven't already!

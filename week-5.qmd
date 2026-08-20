@@ -1,0 +1,25 @@
+---
+title: "Week 5: Trend, Seasonality, and Decomposition"
+---
+
+Modelling the systematic parts of a series: deterministic and stochastic trend, seasonal dummies and harmonic terms, and decomposing a series into trend, seasonal, and remainder.
+
+## Lecture Slides
+
+- [Trend Models](slides/trend_models_improved_3.html){target="_blank"}
+- [Seasonality in Time Series](slides/seasonality_improved_07.html){target="_blank"}
+
+Slides open in a new tab. They are self-contained — use the arrow keys to move
+through them, and `Esc` for the slide overview.
+
+## Reading
+
+Diebold Ch. 13–14
+
+## Due this week
+
+- HW 4
+- Project Data
+
+Everything is due at **11:59 pm ET on the Sunday that closes the module week**,
+unless Canvas says otherwise.

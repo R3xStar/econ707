@@ -1,0 +1,346 @@
+
+---
+title: "Introduction to Time Series Analysis"
+subtitle: "ECON 707/807: Econometrics II"
+author: "Rex Sitti"
+institute: "Old Dominion University - Strome College of Business"
+format:
+  revealjs:
+    slide-number: true
+    incremental: true
+    logo: https://www.odu.edu/content/dam/odu/logos/univ/png-72dpi/odu-secondarytm-blu.png
+    footer: "ECON 707/807: Econometrics II - Spring 2026"
+    theme: default
+    transition: slide
+    background-transition: fade
+  pdf:
+    documentclass: beamer
+execute:
+  echo: false
+  warning: false
+  message: false
+code-fold: show
+code-summary: "Show Code"
+code-tools: true
+code-copy: hover
+link-external-newwindow: true
+tbl-cap-location: top
+fig-cap-location: bottom
+self-contained: true
+editor: source
+---
+
+    
+
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+```
+
+## Time Series
+
+. . .
+
+Sequential measurements or values of a single entity over time.
+
+. . .
+
+Why study time series data?
+
+-   Gross Domestic Product
+-   Unemployment
+-   Vehicle Demand
+-   Energy Consumption
+
+## Forecasting
+
+. . .
+
+"Predict" outcomes of a time series in future (unobserved) periods.
+
+```{r echo = FALSE}
+#| output-location: fragment
+library("lubridate")
+urate <- read.csv("C:/Users/rsitti/OneDrive - Old Dominion University/ODU Classes/Econ 707/data/unrate_us.csv")
+colnames(urate) <- c("date", "urate_t")
+urate$date <- ymd(urate$date)
+plot(urate$date, urate$urate_t,
+     ylab = "Unemployment Rate",
+     xlab = "Time",
+     main = "Monthly Unemployment Rate",
+     type = "l", col = "dodgerblue")
+```
+
+## Time Series Models {.smaller}
+
+$$Y_{t} = f(Y_{t-1}, X_{t}, X_{t-1}, \tau_t, C_t, S_t)$$ where:
+
+::: nonincremental
+-   $Y_{t-1}$ is a lagged value of $Y$
+-   $X_t$ is a contemporaneous independent value
+-   $X_{t-1}$ is a lagged value of $X$
+-   $\tau$ is the trend
+-   $C$ is the cycle
+-   $S$ is the season
+:::
+
+::: aside
+Note: this model only considers what is *inside* the model!
+:::
+
+## Statistics Review
+
+-   mean
+-   variance
+-   standard error
+-   central limit theorem (CLT)
+-   p-value
+-   $Y_i = \alpha + \beta X_i + \epsilon_{i}$
+-   causality
+-   [spurious](https://www.tylervigen.com/spurious-correlations)
+
+## Forecasting Steps
+
+1.  Define Problem
+
+    What am I trying to solve?
+
+2.  Gather Data
+
+    FRED, WRDS, Etc.
+
+3.  Exploratory Data Analysis (EDA)
+
+    Plot, Plot, Plot
+
+4.  Choose & Fit a Model
+
+    $Y_{t} = f(Y_{t-1}, X_{t}, X_{t-1}, \tau_t, C_t, S_t)$
+
+5.  Evaluate, Forecast
+
+## Packages and Functions
+
+-   `table()`
+-   `aggregate()`
+-   `match()`
+-   `paste()`, `paste0()`, `substr()`, `grepl()`, `gsub()`, `regexpr()`, `strsplit()`, `unlist()`
+
+::: aside
+I have some materials [here](https://alexcardazzi.github.io/using-r/).
+:::
+
+## Packages and Functions {visibility="uncounted"}
+
+-   `for()`
+-   `if()`, `else`
+-   `ifelse()`
+-   `fixest`
+-   `scales::alpha()`
+-   `data.table::fread()`
+-   `readRDS()`, `saveRDS()`
+
+## Packages and Functions {visibility="uncounted"}
+
+-   `lubridate`[^intro_01_new-1]
+-   `tsibble`
+-   `forecast`
+-   `ts()`[^intro_01_new-2]
+-   `duplicated()`
+
+[^intro_01_new-1]: [lubridate](https://evoldyn.gitlab.io/evomics-2018/ref-sheets/R_lubridate.pdf)
+
+[^intro_01_new-2]: [ts](https://www.statmethods.net/advstats/timeseries.html)
+
+## Install and Load Packages
+
+```{r eval = FALSE}
+install.packages("lubridate")
+library("lubridate")
+```
+
+## Make a Time Series
+
+```{r}
+#| output-location: fragment
+urate <- read.csv("C:/Users/rsitti/OneDrive - Old Dominion University/ODU Classes/Econ 707/data/unrate_us.csv")
+colnames(urate) <- c("date", "urate_t")
+head(urate)
+```
+
+## Plot a Time Series
+
+```{r}
+#| output-location: fragment
+urate$date <- ymd(urate$date)
+plot(urate$date, urate$urate_t,
+     xlab = "Month",
+     ylab = "Unemployment Rate",
+     main = "Monthly Unemployment Rate")
+```
+
+## Plot a Time Series {visibility="uncounted"}
+
+```{r}
+#| output-location: fragment
+plot(urate$date, urate$urate_t,
+     ylab = "Unemployment Rate",
+     xlab = "Time",
+     main = "Monthly Unemployment Rate",
+     type = "l", col = "dodgerblue")
+```
+
+## Lags (Leads)
+
+```{r echo=FALSE}
+head(urate)
+```
+
+. . .
+
+```{r echo = TRUE}
+#| code-fold: true
+t <- 2:nrow(urate)
+urate$urate_tm1 <- NA
+urate$urate_tm1[t] <- urate$urate_t[t-1]
+urate$urate_tp1 <- NA
+urate$urate_tp1[t-1] <- urate$urate_t[t]
+head(urate)
+```
+
+## What about panels?
+
+```{r}
+#| code-fold: true
+df <- data.frame(state = c(rep("NY", 10),
+                           rep("VA", 10),
+                           rep("CA", 10)),
+                 year = rep(2010:2019, 3),
+                 var = rnorm(30))
+df[df$year %in% 2010:2012,]
+```
+
+## What about panels? {visibility="uncounted"}
+
+```{r}
+df$var_lag1 <- NA
+```
+
+```{r echo = FALSE}
+#| output-location: fragment
+df[df$year %in% 2010:2012,]
+```
+
+::: aside
+Note: these data are already ordered.
+:::
+
+## What about panels? {visibility="uncounted"}
+
+```{r}
+#| code-fold: true
+#| output-location: fragment
+df$var_lag1 <- NA
+t <- which(duplicated(df$state))
+df$var_lag1[t] <- df$var[t-1]
+df[df$year %in% 2010:2012,]
+```
+
+## Multiple Plots
+
+```{r}
+#| output-location: fragment
+plot(df$year, df$var)
+```
+
+## Multiple Plots {visibility="uncounted"}
+
+```{r}
+#| output-location: fragment
+plot(df$year, df$var,
+     col = match(df$state, unique(df$state)))
+```
+
+## Multiple Plots {visibility="uncounted"}
+
+```{r}
+#| output-location: fragment
+plot(df$year, df$var,
+     col = match(df$state, unique(df$state)),
+     type = "l")
+```
+
+## Multiple Plots {visibility="uncounted"}
+
+```{r}
+#| output-location: fragment
+lim <- df$state == "NY"
+plot(df$year[lim], df$var[lim],
+     col = match(df$state[lim], unique(df$state)),
+     type = "l")
+```
+
+## Multiple Plots {visibility="uncounted"}
+
+```{r}
+#| output-location: fragment
+lim <- df$state == "NY"
+plot(df$year[lim], df$var[lim],
+     col = match(df$state[lim], unique(df$state)),
+     type = "l")
+lim <- df$state == "VA"
+lines(df$year[lim], df$var[lim],
+     col = match(df$state[lim], unique(df$state)))
+lim <- df$state == "CA"
+lines(df$year[lim], df$var[lim],
+     col = match(df$state[lim], unique(df$state)))
+```
+
+## Multiple Plots {visibility="uncounted"}
+
+```{r}
+#| output-location: fragment
+plot(df$year, df$var, type = "n")
+lim <- df$state == "NY"
+lines(df$year[lim], df$var[lim],
+     col = match(df$state[lim], unique(df$state)))
+lim <- df$state == "VA"
+lines(df$year[lim], df$var[lim],
+     col = match(df$state[lim], unique(df$state)))
+lim <- df$state == "CA"
+lines(df$year[lim], df$var[lim],
+     col = match(df$state[lim], unique(df$state)))
+```
+
+## Next Class
+
+1.  $E[y]$, $\hat{y}$
+2.  Loss Functions
+3.  Lags, Leads
+4.  Conditional Forecasts
+5.  Time Series Components
+
+## Practice - Cleaning Data
+
+::: nonincremental
+1.  Work on [#5](https://foresightbi.com.ng/microsoft-power-bi/dirty-data-samples-to-practice-on/#5_Jumbled_Customer_Details).
+
+2.  Work on [#8](https://foresightbi.com.ng/microsoft-power-bi/dirty-data-samples-to-practice-on/#8_Invoices_With_Merged_Categories_and_Merged_Amounts).
+:::
+
+## Practice - Social Security
+
+::: nonincremental
+1.  Navigate to the following link: [here](%22https://www.ssa.gov/oact/babynames/limits.html%22)
+2.  Download the state-specific data.
+3.  Read in the data from Virginia.
+    -   Make some plots for a name of your choosing (time series, distributions, etc.)
+4.  Read in *all* of the data
+    -   Combine into one data.frame.
+    -   What state is your chosen name "most" popular?
+    -   What year is your chosen name "most" popular?
+    -   Analyze the "gender neutrality" of a relatively unisex name (e.g. "Alex").
+    -   Analyze a common name and it's nickname (e.g. "Alex" vs "Alexander").
+:::

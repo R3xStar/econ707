@@ -1,0 +1,24 @@
+---
+title: "Week 3: Autocorrelation and Stationarity"
+---
+
+Serial dependence, the ACF and PACF, white noise, and what stationarity means and why it matters. This is the diagnostic vocabulary the rest of the course is built on.
+
+## Lecture Slides
+
+- [Autocorrelation](slides/autocorrelation_04.html){target="_blank"}
+
+Slides open in a new tab. They are self-contained — use the arrow keys to move
+through them, and `Esc` for the slide overview.
+
+## Reading
+
+Diebold Ch. 7–8
+
+## Due this week
+
+- HW 3
+- Project Pitch
+
+Everything is due at **11:59 pm ET on the Sunday that closes the module week**,
+unless Canvas says otherwise.

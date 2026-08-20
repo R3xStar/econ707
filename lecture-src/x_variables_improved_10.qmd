@@ -1,0 +1,1267 @@
+---
+title: "X Variables and Cointegration"
+subtitle: "Week 10: Multivariate Time Series"
+author: "Rex Sitti"
+institute: "Old Dominion University"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: https://www.odu.edu/content/dam/odu/logos/univ/png-72dpi/odu-secondarytm-blu.png
+    footer: "ECON 707/807: Econometrics II"
+  
+self-contained: true
+
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(out.width = '90%')
+par(mar = c(4.1, 4.1, 1.1, 4.1))
+set.seed(321)
+
+# Load required packages
+library("lubridate")
+library("forecast")
+library("scales")
+library("tseries")
+
+# Custom plotting function
+nice_plot <- function(...) {
+  plot(..., las = 1, bty = "n", 
+       col.axis = "gray30", col.lab = "gray30")
+}
+
+# Helper function to find data files
+find_data <- function(filename) {
+  possible_paths <- c(
+    file.path("../data", filename),
+    file.path("data", filename),
+    file.path(".", filename)
+  )
+  
+  for(path in possible_paths) {
+    if(file.exists(path)) return(path)
+  }
+  return(NULL)
+}
+
+# Safe data loader with fallback
+load_data_safe <- function(filename, generator_func) {
+  data_path <- find_data(filename)
+  
+  if (!is.null(data_path)) {
+    data <- read.csv(data_path, stringsAsFactors = FALSE)
+    return(data)
+  } else {
+    message("Note: Using simulated data for ", filename)
+    return(generator_func())
+  }
+}
+```
+
+```{r data-generators, include=FALSE}
+# Synthetic data generator for macro variables
+generate_macro_data <- function() {
+  set.seed(123)
+  dates <- seq(ymd("1960-01-01"), ymd("2023-12-01"), by = "quarter")
+  n <- length(dates)
+  
+  # Personal Consumption Expenditure (with trend)
+  pce <- cumsum(rnorm(n, mean = 0.5, sd = 1))
+  
+  # Personal Income (correlated with PCE)
+  income <- pce + cumsum(rnorm(n, mean = 0.2, sd = 0.8))
+  
+  # Savings (residual)
+  savings <- income - pce + rnorm(n, 0, 0.5)
+  
+  # Unemployment rate (cyclical)
+  urate <- 5 + 3*sin(2*pi*(1:n)/40) + rnorm(n, 0, 0.5)
+  
+  data.frame(
+    DATE = dates,
+    PCE = pce,
+    INCOME = income,
+    SAVINGS = savings,
+    URATE = urate
+  )
+}
+
+# Synthetic data generator for yield curve
+generate_yield_data <- function() {
+  set.seed(456)
+  dates <- seq(ymd("1982-01-01"), ymd("2014-04-01"), by = "month")
+  n <- length(dates)
+  
+  # 3-month rate (base rate with cycle)
+  base_rate <- 4 + 3*sin(2*pi*(1:n)/120) + cumsum(rnorm(n, -0.005, 0.1))
+  base_rate <- pmax(0.01, base_rate)  # Floor at near-zero
+  
+  # 10-year rate (higher on average, follows similar pattern)
+  long_rate <- base_rate + 1.5 + rnorm(n, 0, 0.3)
+  long_rate <- pmax(base_rate, long_rate)  # Always >= short rate mostly
+  
+  # Spread
+  spread <- long_rate - base_rate
+  
+  data.frame(
+    DATE = dates,
+    t3m = base_rate,
+    t120m = long_rate,
+    spread = spread
+  )
+}
+
+# Synthetic data generator for cointegrated series
+generate_cointegrated_data <- function() {
+  set.seed(789)
+  dates <- seq(ymd("1960-01-01"), ymd("2023-12-01"), by = "quarter")
+  n <- length(dates)
+  
+  # Personal Income (random walk with drift)
+  PI <- cumsum(rnorm(n, mean = 0.02, sd = 0.05))
+  
+  # Personal Consumption (cointegrated with PI)
+  # Long-run: PCE ≈ 0.95 * PI
+  PCE <- 0.95 * PI + cumsum(rnorm(n, 0, 0.01))
+  
+  # Convert to levels (exponentiate)
+  PI_level <- exp(PI + 8)  # Start around 3000
+  PCE_level <- exp(PCE + 8)
+  
+  data.frame(
+    DATE = dates,
+    PI = PI_level,
+    PCE = PCE_level
+  )
+}
+```
+
+## Learning Objectives
+
+By the end of this session, you will be able to:
+
+1. **Understand** the dangers of spurious regression with non-stationary data
+
+2. **Identify** cointegrated relationships between time series
+
+3. **Test** for cointegration using residual-based approaches
+
+4. **Estimate** error correction models (ECM)
+
+5. **Apply** these concepts to economic data (yield curves, consumption)
+
+6. **Interpret** long-run equilibrium relationships
+
+## Today's Roadmap
+
+1. **Leading Indicators**: Using X variables to forecast Y
+
+2. **Spurious Regression**: The non-stationarity trap
+
+3. **Integration**: I(0), I(1), I(2) processes
+
+4. **Cointegration**: Long-run equilibrium relationships
+
+5. **Error Correction Models**: Short-run dynamics + long-run equilibrium
+
+6. **Applications**: Yield curves, consumption-income relationships
+
+# From Univariate to Multivariate
+
+## Beyond Autoregressive Models
+
+**So far**: Forecasting Y using only past values of Y
+
+$$Y_t = f(Y_{t-1}, Y_{t-2}, \ldots, Y_{t-p}, e_t)$$
+
+. . .
+
+**Today**: Using other variables (X) to forecast Y
+
+$$Y_t = f(X_t, X_{t-1}, \ldots, Y_{t-1}, \ldots, e_t)$$
+
+. . .
+
+**Why?**
+- Other variables contain information about future Y
+- Can improve forecast accuracy
+- Understand causal relationships
+
+## Leading Indicators
+
+**Leading indicator**: Variable that changes before the economy changes
+
+. . .
+
+**Examples**:
+- **Housing starts** → Future construction activity
+- **Building permits** → Future residential investment  
+- **Yield curve** → Future recessions
+- **Consumer confidence** → Future spending
+- **Stock market** → Future economic activity
+
+. . .
+
+**Key property**: X changes *before* Y, making it useful for forecasting
+
+## Example: The Yield Curve
+
+**Yield curve**: Relationship between bond maturity and interest rate
+
+. . .
+
+**Normal curve** (upward sloping):
+- Long-term rates > Short-term rates
+- Investors demand premium for tying up money longer
+- Signals healthy economy
+
+. . .
+
+**Inverted curve** (downward sloping):
+- Long-term rates < Short-term rates
+- Investors expect future rate cuts (recession)
+- **Has predicted last 7 recessions!**
+
+## Visualizing the Yield Curve
+
+```{r echo=FALSE, out.width="90%"}
+# Create stylized yield curve examples
+maturities <- c(1, 2, 3, 5, 7, 10, 20, 30)
+
+# Normal yield curve
+normal_rates <- 2 + 0.5*log(maturities) + 0.05*maturities
+
+# Inverted yield curve  
+inverted_rates <- 4 - 0.3*log(maturities)
+
+nice_plot(maturities, normal_rates, 
+          type = "b", pch = 19, col = "dodgerblue", lwd = 2,
+          xlab = "Maturity (Years)", 
+          ylab = "Interest Rate (%)",
+          ylim = range(normal_rates, inverted_rates),
+          main = "Normal vs Inverted Yield Curves")
+
+lines(maturities, inverted_rates, 
+      type = "b", pch = 17, col = "tomato", lwd = 2)
+
+legend("topright",
+       legend = c("Normal (Healthy Economy)", 
+                  "Inverted (Recession Signal)"),
+       col = c("dodgerblue", "tomato"),
+       pch = c(19, 17),
+       lty = 1, lwd = 2,
+       bty = "n")
+```
+
+## Real Yield Curve Data
+
+**Interactive FRED Charts**:
+
+::: {.nonincremental}
+- [10-Year minus 3-Month Treasury Spread](https://fred.stlouisfed.org/series/T10Y3M)
+- [Multiple Treasury Rates](https://fred.stlouisfed.org/series/DGS10)
+:::
+
+. . .
+
+**Key observations**:
+- Spread turns negative before recessions
+- Lead time: typically 6-18 months
+- Not perfect but highly reliable
+
+## Forecasting with X Variables
+
+**General approach**:
+
+$$\% \Delta \text{PCE}_t = f(\% \Delta \text{Income}_t, \% \Delta \text{Savings}_t, \Delta \text{U-Rate}_t) + e_t$$
+
+. . .
+
+**Challenge**: To forecast, you need future values of X!
+
+. . .
+
+**Solutions**:
+1. Use lagged X: $Y_t = f(X_{t-1}, X_{t-2}, \ldots)$
+2. Forecast X too (VAR models - later)
+3. Use variables known in advance (calendar effects, policy)
+
+## Example: Macro Variables
+
+```{r}
+#| code-fold: true
+macro <- load_data_safe("macro.csv", generate_macro_data)
+if(!inherits(macro$DATE, "Date")) {
+  macro$DATE <- ymd(macro$DATE)
+}
+
+# Calculate growth rates
+macro$pce_growth <- c(NA, diff(macro$PCE) / macro$PCE[-nrow(macro)] * 100)
+macro$inc_growth <- c(NA, diff(macro$INCOME) / macro$INCOME[-nrow(macro)] * 100)
+
+nice_plot(macro$DATE, macro$pce_growth,
+          type = "l", lwd = 2, col = "dodgerblue",
+          xlab = "Date",
+          ylab = "Growth Rate (%)",
+          main = "PCE and Income Growth Rates")
+lines(macro$DATE, macro$inc_growth, col = "tomato", lwd = 2)
+
+legend("topright",
+       legend = c("PCE Growth", "Income Growth"),
+       col = c("dodgerblue", "tomato"),
+       lty = 1, lwd = 2,
+       bty = "n")
+```
+
+## Checking Stationarity
+
+**Before regression, check stationarity!**
+
+```{r}
+#| code-fold: true
+# Create time series object
+macro_ts <- ts(macro[, c("PCE", "INCOME", "SAVINGS", "URATE")],
+              start = c(year(min(macro$DATE)), 1),
+              frequency = 4)
+
+# Check ACF
+acf(macro_ts[, 1:3], main = "ACF: Macro Variables")
+```
+
+**Observation**: Slow decay → likely non-stationary
+
+# Spurious Regression
+
+## The Spurious Regression Problem
+
+**Setup**: Two independent random walks
+
+$$Y_t = Y_{t-1} + \epsilon_t$$
+$$X_t = X_{t-1} + \nu_t$$
+
+where $\epsilon_t$ and $\nu_t$ are independent white noise
+
+. . .
+
+**Question**: If we regress Y on X, what should $\hat{\beta}$ be?
+
+. . .
+
+**Answer**: Should be zero (they're independent!)
+
+. . .
+
+**Reality**: We often find significant relationships anyway... 😱
+
+## Simulation: Independent Stationary Series
+
+```{r}
+#| code-fold: true
+set.seed(123)
+n_sims <- 1000
+t_stats <- numeric(n_sims)
+
+for(j in 1:n_sims) {
+  # Two independent white noise series
+  x <- rnorm(120)
+  y <- rnorm(120)
+  
+  t_stats[j] <- summary(lm(y ~ x))$coefficients[2, 3]
+}
+
+# Plot distribution
+nice_plot(table(round(t_stats, 1)),
+          ylab = "Frequency",
+          xlab = sprintf("t-statistic (%.1f%% significant)", 
+                        100*mean(abs(t_stats) > 1.96)),
+          main = "Spurious Regression: Independent Stationary Series",
+          type = "h", lwd = 3)
+abline(v = 0, col = "tomato", lwd = 2, lty = 2)
+abline(v = c(-1.96, 1.96), col = "dodgerblue", lwd = 2, lty = 2)
+
+text(0, max(table(round(t_stats, 1))), 
+     "~5% false positives\n(as expected)", 
+     pos = 3, col = "tomato")
+```
+
+**Result**: ~5% spurious results (correct Type I error rate) ✓
+
+## Simulation: Independent Random Walks
+
+```{r}
+#| code-fold: true
+set.seed(456)
+t_stats_rw <- numeric(n_sims)
+
+for(j in 1:n_sims) {
+  # Two independent random walks
+  x <- cumsum(rnorm(120))
+  y <- cumsum(rnorm(120))
+  
+  t_stats_rw[j] <- summary(lm(y ~ x))$coefficients[2, 3]
+}
+
+# Plot distribution
+nice_plot(table(round(t_stats_rw, 0)),
+          ylab = "Frequency",
+          xlab = sprintf("t-statistic (%.1f%% significant!)", 
+                        100*mean(abs(t_stats_rw) > 1.96)),
+          main = "Spurious Regression: Independent Random Walks",
+          type = "h", lwd = 3)
+abline(v = 0, col = "tomato", lwd = 2, lty = 2)
+abline(v = c(-1.96, 1.96), col = "dodgerblue", lwd = 2, lty = 2)
+
+text(0, max(table(round(t_stats_rw, 0))), 
+     "Disaster!\n~75% false positives", 
+     pos = 3, col = "tomato", cex = 1.2)
+```
+
+**Result**: ~75% spurious results! 😱
+
+## Why This Happens
+
+**Visual example** from last simulation:
+
+```{r}
+#| code-fold: true
+# Use last simulation's x and y
+par(mfrow = c(1, 2))
+
+nice_plot(1:120, x, type = "l", col = alpha("tomato", 0.6), lwd = 2,
+          xlab = "Time", ylab = "Value",
+          ylim = range(x, y),
+          main = "Two Independent Random Walks")
+lines(1:120, y, col = alpha("dodgerblue", 0.6), lwd = 2)
+legend("topleft", 
+       legend = c("X (independent)", "Y (independent)"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+
+nice_plot(x, y, pch = 19, col = alpha("black", 0.4),
+          xlab = "X", ylab = "Y",
+          main = "Spurious Relationship")
+abline(lm(y ~ x), col = "red", lwd = 2, lty = 2)
+
+# Add regression stats
+reg_spurious <- lm(y ~ x)
+r2 <- summary(reg_spurious)$r.squared
+pval <- summary(reg_spurious)$coefficients[2, 4]
+text(min(x), max(y), 
+     sprintf("R² = %.3f\np-value < 0.001", r2),
+     pos = 4, col = "red", cex = 1.2)
+```
+
+**They look related, but they're not!**
+
+## Testing for Spurious Regression
+
+```{r}
+# Regression results
+reg1 <- lm(y ~ x)
+
+# Add lagged Y
+y_lag <- c(NA, y[-length(y)])
+reg2 <- lm(y[-1] ~ x[-1] + y_lag[-1])
+
+# Compare
+comparison <- data.frame(
+  Model = c("Y ~ X", "Y ~ X + Y(t-1)"),
+  `Coef on X` = c(coef(reg1)[2], coef(reg2)[2]),
+  `t-stat X` = c(summary(reg1)$coef[2,3], summary(reg2)$coef[2,3]),
+  `R-squared` = c(summary(reg1)$r.squared, summary(reg2)$r.squared),
+  check.names = FALSE
+)
+
+comparison[,2:4] <- round(comparison[,2:4], 3)
+
+knitr::kable(comparison, align = c("l", "r", "r", "r"),
+             caption = "Detecting Spurious Regression")
+```
+
+**Warning signs**:
+- Coefficient on X changes dramatically
+- High R² but regression "feels wrong"
+- Results very sensitive to specification
+
+## Diagnostic: Check Residuals
+
+**Key test**: Are residuals stationary?
+
+```{r}
+# Test stationarity of residuals
+adf_result <- adf.test(reg1$residuals)
+
+cat("ADF test on residuals from Y ~ X:\n")
+cat("p-value =", round(adf_result$p.value, 4), "\n\n")
+
+if(adf_result$p.value > 0.05) {
+  cat("⚠️  SPURIOUS REGRESSION DETECTED!\n")
+  cat("Residuals have unit root → regression is spurious\n")
+} else {
+  cat("✓ Residuals are stationary → regression may be valid\n")
+}
+```
+
+## Residuals from Spurious Regression
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+
+nice_plot(reg1$residuals, type = "l", lwd = 1.5,
+          xlab = "Time",
+          ylab = "Residuals",
+          main = "Residuals Show Persistence")
+abline(h = 0, lty = 2, col = "red")
+
+acf(reg1$residuals, main = "ACF: Residuals")
+```
+
+**Pattern**: Residuals are **non-stationary** (slow decay in ACF)
+
+## How to Fix Spurious Regression
+
+**Three approaches**:
+
+. . .
+
+**1. Difference the data**:
+```r
+delta_y <- diff(y)
+delta_x <- diff(x)
+lm(delta_y ~ delta_x)
+```
+
+. . .
+
+**2. Include lagged dependent variable**:
+```r
+lm(y ~ x + lag(y))
+```
+
+. . .
+
+**3. Test for cointegration** (if Y and X should move together):
+- If cointegrated → use error correction model
+- If not cointegrated → use differenced data
+
+# Orders of Integration
+
+## Defining Integration
+
+**Order of integration**: How many times must you difference to achieve stationarity?
+
+. . .
+
+**I(0)**: **Stationary** - No differencing needed
+- Example: White noise, stationary AR/MA
+
+. . .
+
+**I(1)**: **First-order integrated** - One difference achieves stationarity
+- Example: Random walk, most economic series
+
+. . .
+
+**I(2)**: **Second-order integrated** - Two differences needed
+- Example: Price levels, money supply (sometimes)
+
+## Examples of Different Orders
+
+```{r}
+#| code-fold: true
+set.seed(789)
+n <- 200
+
+# I(0) - Stationary AR(1)
+y_i0 <- arima.sim(list(ar = 0.7), n = n)
+
+# I(1) - Random walk
+y_i1 <- cumsum(rnorm(n))
+
+# I(2) - Integrated twice
+y_i2 <- cumsum(cumsum(rnorm(n)))
+
+par(mfrow = c(1, 3))
+nice_plot(y_i0, type = "l", main = "I(0): Stationary",
+          xlab = "Time", ylab = "Value")
+nice_plot(y_i1, type = "l", main = "I(1): Random Walk",
+          xlab = "Time", ylab = "Value")
+nice_plot(y_i2, type = "l", main = "I(2): Double Integration",
+          xlab = "Time", ylab = "Value")
+```
+
+## Money Supply: An I(2) Example
+
+::: {.nonincremental}
+![M2 Money Supply (levels)](https://fred.stlouisfed.org/graph/fredgraph.png?g=VtwN){width=80%}
+:::
+
+**Observation**: Clear upward trend, likely non-stationary
+
+## Money Supply: First Difference
+
+::: {.nonincremental}
+![M2 Money Supply (first difference)](https://fred.stlouisfed.org/graph/fredgraph.png?g=VtwX){width=80%}
+:::
+
+**Observation**: Still trending! Need another difference → I(2)
+
+## Why Orders Matter
+
+**For regression**:
+
+. . .
+
+**Both I(0)**: Regular OLS works ✓
+```r
+lm(y ~ x)
+```
+
+. . .
+
+**Both I(1), not cointegrated**: Difference first
+```r
+lm(diff(y) ~ diff(x))
+```
+
+. . .
+
+**Both I(1), cointegrated**: Error correction model ✓
+```r
+# Special case - discussed next!
+```
+
+. . .
+
+**Mixed orders**: Usually problematic (need careful analysis)
+
+# Cointegration
+
+## What is Cointegration?
+
+**Intuition**: Two non-stationary series that drift together
+
+. . .
+
+**Formal definition**: Series $Y_t$ and $X_t$ are cointegrated if:
+
+1. Both are $I(1)$ (non-stationary)
+2. A linear combination is $I(0)$ (stationary):
+   $$Z_t = Y_t - \theta X_t \sim I(0)$$
+
+. . .
+
+**Key insight**: Although each series wanders, they maintain a stable long-run relationship
+
+## The Old Man and His Dog
+
+Classic cointegration analogy:
+
+::: {.nonincremental}
+![](https://www.eco.uc3m.es/~jgonzalo/teaching/econometriaii/archivos_cointegration/oldman_dog.gif){width=40%}
+:::
+
+**Man and dog**: Two random walks, but stay together!
+
+::: aside
+Source: eco.uc3m.es/~jgonzalo/teaching/econometriaii/cointegration.htm
+:::
+
+## Economic Examples
+
+**Common cointegrated relationships**:
+
+. . .
+
+**Consumption and Income**:
+- Both trend upward (non-stationary)
+- Maintain stable ratio (cointegrated)
+- Long-run: $C_t \approx 0.9 \times Y_t$
+
+. . .
+
+**Short and long-term interest rates**:
+- Both fluctuate (non-stationary)
+- Spread is stable (cointegrated)
+- Arbitrage keeps them linked
+
+. . .
+
+**Spot and futures prices**:
+- Both drift (non-stationary)
+- Basis is stable (cointegrated)
+
+## Testing for Cointegration
+
+**Engle-Granger two-step procedure**:
+
+. . .
+
+**Step 1**: Estimate cointegrating regression
+$$Y_t = \alpha + \theta X_t + Z_t$$
+
+. . .
+
+**Step 2**: Test if residuals are stationary
+```r
+adf.test(residuals)
+```
+
+. . .
+
+**If residuals are I(0)**: Series are cointegrated ✓  
+**If residuals are I(1)**: No cointegration, use differences
+
+## Example: Consumption and Income
+
+```{r}
+#| code-fold: true
+pi_data <- load_data_safe("inc_pce.csv", generate_cointegrated_data)
+if(!inherits(pi_data$DATE, "Date")) {
+  pi_data$DATE <- ymd(pi_data$DATE)
+}
+
+par(mfrow = c(1, 2))
+
+# Levels
+nice_plot(pi_data$DATE, pi_data$PI, type = "l", col = "tomato", lwd = 2,
+          ylim = range(pi_data$PI, pi_data$PCE),
+          xlab = "Date", ylab = "Billions of Dollars",
+          main = "Levels: Non-Stationary")
+lines(pi_data$DATE, pi_data$PCE, col = "dodgerblue", lwd = 2)
+legend("topleft", 
+       legend = c("Personal Income", "Personal Consumption"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+
+# Logs
+nice_plot(pi_data$DATE, log(pi_data$PI), type = "l", col = "tomato", lwd = 2,
+          ylim = log(range(pi_data$PI, pi_data$PCE)),
+          xlab = "Date", ylab = "log(Billions)",
+          main = "Log Levels")
+lines(pi_data$DATE, log(pi_data$PCE), col = "dodgerblue", lwd = 2)
+legend("topleft", 
+       legend = c("log(Income)", "log(Consumption)"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+**Both series trend upward** → Non-stationary
+
+## Cointegrating Regression
+
+```{r}
+# Estimate long-run relationship
+coint_reg <- lm(log(PCE) ~ log(PI), data = pi_data)
+
+# Display results
+coef_summary <- summary(coint_reg)$coefficients
+
+results_df <- data.frame(
+  Coefficient = c("Intercept", "log(Income)"),
+  Estimate = sprintf("%.4f", coef_summary[, 1]),
+  `Std Error` = sprintf("%.4f", coef_summary[, 2]),
+  `t-value` = sprintf("%.2f", coef_summary[, 3]),
+  `p-value` = sprintf("%.4f", coef_summary[, 4]),
+  check.names = FALSE
+)
+
+knitr::kable(results_df, align = c("l", "r", "r", "r", "r"),
+             caption = "Long-Run Consumption-Income Relationship")
+```
+
+. . .
+
+**Interpretation**: 1% increase in income → ~`r sprintf("%.2f", coef(coint_reg)[2])`% increase in consumption
+
+## Testing the Residuals
+
+```{r}
+#| code-fold: true
+# Plot residuals
+nice_plot(pi_data$DATE, coint_reg$residuals, 
+          type = "l", lwd = 1.5,
+          xlab = "Date",
+          ylab = "Residuals",
+          main = "Residuals from Cointegrating Regression")
+abline(h = 0, lty = 2, col = "red")
+```
+
+**Question**: Are these residuals stationary?
+
+## ADF Test on Residuals
+
+```{r}
+# Test for stationarity
+adf_coint <- adf.test(coint_reg$residuals)
+
+cat("ADF test on cointegrating residuals:\n")
+cat("Test statistic =", round(adf_coint$statistic, 3), "\n")
+cat("p-value =", round(adf_coint$p.value, 4), "\n\n")
+
+if(adf_coint$p.value < 0.05) {
+  cat("✓ COINTEGRATION DETECTED!\n")
+  cat("Residuals are stationary → Income and Consumption are cointegrated\n")
+  cat("→ Can use Error Correction Model\n")
+} else {
+  cat("⚠️  NO COINTEGRATION\n")
+  cat("Residuals have unit root → Use first differences instead\n")
+}
+```
+
+## Visual Confirmation
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+
+nice_plot(coint_reg$residuals, type = "l", lwd = 1.5,
+          main = "Residuals Over Time",
+          xlab = "Time", ylab = "Residuals")
+abline(h = 0, lty = 2, col = "red")
+
+acf(coint_reg$residuals, main = "ACF of Residuals")
+```
+
+**Pattern**: Faster decay than random walk → Stationary ✓
+
+## Example: Yield Curve
+
+```{r}
+#| code-fold: true
+fred <- load_data_safe("spread.csv", generate_yield_data)
+if(!inherits(fred$DATE, "Date")) {
+  fred$DATE <- ymd(fred$DATE)
+}
+
+# Ensure numeric columns
+for(col in c("t3m", "t120m", "spread")) {
+  if(is.character(fred[[col]])) {
+    fred <- fred[fred[[col]] != ".", ]
+    fred[[col]] <- as.numeric(fred[[col]])
+  }
+}
+
+# Limit date range
+fred <- fred[fred$DATE < ymd("2014-05-01"), ]
+
+nice_plot(fred$DATE, fred$t3m, type = "l", col = "dodgerblue", lwd = 2,
+          ylim = range(fred$t3m, fred$t120m, na.rm = TRUE),
+          xlab = "Date", ylab = "Interest Rate (%)",
+          main = "3-Month vs 10-Year Treasury Rates")
+lines(fred$DATE, fred$t120m, col = "tomato", lwd = 2)
+
+legend("topright",
+       legend = c("3-Month", "10-Year"),
+       col = c("dodgerblue", "tomato"),
+       lty = 1, lwd = 2,
+       bty = "n")
+```
+
+**Do these rates move together?**
+
+## Yield Curve: Cointegration Test
+
+```{r}
+# Regress long rate on short rate
+yield_reg <- lm(t120m ~ t3m, data = fred)
+
+# Display summary
+coef_yield <- summary(yield_reg)$coefficients
+results_yield <- data.frame(
+  Coefficient = c("Intercept", "3-Month Rate"),
+  Estimate = sprintf("%.4f", coef_yield[, 1]),
+  `t-value` = sprintf("%.2f", coef_yield[, 3]),
+  check.names = FALSE
+)
+
+knitr::kable(results_yield, align = c("l", "r", "r"),
+             caption = "10-Year Rate Regression")
+```
+
+## Yield Curve: Residuals
+
+```{r}
+#| code-fold: true
+nice_plot(fred$DATE, yield_reg$residuals, type = "l", lwd = 1.5,
+          xlab = "Date",
+          ylab = "Spread (Residual)",
+          main = "Deviation from Long-Run Relationship")
+abline(h = 0, lty = 2, col = "red")
+```
+
+**This is the yield spread** (approximately)!
+
+## Yield Curve: Stationarity Test
+
+```{r}
+# Test residuals
+adf_yield <- adf.test(yield_reg$residuals)
+
+cat("ADF test on yield curve residuals:\n")
+cat("p-value =", round(adf_yield$p.value, 4), "\n\n")
+
+if(adf_yield$p.value < 0.05) {
+  cat("✓ COINTEGRATED!\n")
+  cat("Short and long rates maintain stable spread\n")
+  cat("Can use error correction model\n")
+} else {
+  cat("⚠️  Not cointegrated - use differences\n")
+}
+```
+
+# Error Correction Models
+
+## From Cointegration to Dynamics
+
+**Cointegration tells us**:
+- Long-run equilibrium relationship exists
+- $Y_t = \theta X_t + Z_t$ where $Z_t$ is stationary
+
+. . .
+
+**But we also care about**:
+- Short-run dynamics (how fast adjustment occurs)
+- Response to shocks
+- Forecasting
+
+. . .
+
+**Solution**: Error Correction Model (ECM)
+
+## Error Correction Model Structure
+
+**The ECM equation**:
+
+$$\Delta Y_t = \underbrace{\alpha + \sum_{i=1}^{p} \beta_i \Delta Y_{t-i} + \sum_{j=1}^{q} \gamma_j \Delta X_{t-j}}_{\text{Short-run dynamics}} + \underbrace{\delta Z_{t-1}}_{\text{Error correction}} + \epsilon_t$$
+
+where $Z_{t-1} = Y_{t-1} - \theta X_{t-1}$ (deviation from equilibrium)
+
+. . .
+
+**Key coefficient**: $\delta$ (error correction speed)
+- $\delta < 0$ → System returns to equilibrium
+- $|\delta|$ larger → Faster adjustment
+
+## Interpreting ECM Components
+
+**Short-run dynamics**: $\Delta Y_t = \ldots + \beta_i \Delta Y_{t-i} + \gamma_j \Delta X_{t-j} + \ldots$
+- How changes in X affect changes in Y immediately
+- Temporary, transitory effects
+
+. . .
+
+**Error correction**: $\ldots + \delta Z_{t-1} + \ldots$
+- How far from equilibrium ($Z_{t-1}$) affects current change
+- If $Z_{t-1} > 0$ (Y too high), $\delta < 0$ makes $\Delta Y_t$ negative
+- Pulls system back to equilibrium
+
+. . .
+
+**Example**: If $\delta = -0.2$:
+- 20% of disequilibrium corrected each period
+- Half-life = $\frac{\log(0.5)}{\log(1-0.2)} \approx 3$ periods
+
+## ECM for Yield Curve
+
+```{r}
+# Prepare data for ECM
+# Z(t-1) is lagged residual from cointegrating regression
+fred$resid_lag <- c(NA, yield_reg$residuals[-nrow(fred)])
+
+# Changes in rates
+fred$d_t3m <- c(NA, diff(fred$t3m))
+fred$d_t120m <- c(NA, diff(fred$t120m))
+
+# Lags of changes
+fred$d_t3m_lag <- c(NA, fred$d_t3m[-nrow(fred)])
+fred$d_t120m_lag <- c(NA, fred$d_t120m[-nrow(fred)])
+
+# Remove NAs
+fred_clean <- fred[complete.cases(fred), ]
+
+# Estimate ECM
+ecm <- lm(d_t120m ~ d_t120m_lag + d_t3m_lag + resid_lag, 
+          data = fred_clean)
+```
+
+## ECM Results
+
+```{r}
+# Display results
+coef_ecm <- summary(ecm)$coefficients
+
+results_ecm <- data.frame(
+  Variable = c("Intercept", "Δ 10-Year(t-1)", "Δ 3-Month(t-1)", 
+               "Error Correction"),
+  Estimate = sprintf("%.4f", coef_ecm[, 1]),
+  `Std Error` = sprintf("%.4f", coef_ecm[, 2]),
+  `t-value` = sprintf("%.2f", coef_ecm[, 3]),
+  `p-value` = ifelse(coef_ecm[, 4] < 0.001, "<0.001",
+                    sprintf("%.4f", coef_ecm[, 4])),
+  check.names = FALSE
+)
+
+knitr::kable(results_ecm, align = c("l", "r", "r", "r", "r"),
+             caption = "Error Correction Model: 10-Year Rate")
+```
+
+. . .
+
+**Interpretation**:
+- Error correction coefficient = `r sprintf("%.3f", coef(ecm)["resid_lag"])`
+- `r if(coef(ecm)["resid_lag"] < 0) "Negative → converges to equilibrium ✓" else "Positive → diverges (problem!)"`
+
+## ECM Diagnostics
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+
+# Residuals over time
+nice_plot(ecm$residuals, type = "l", lwd = 1.5,
+          main = "ECM Residuals",
+          xlab = "Time", ylab = "Residuals")
+abline(h = 0, lty = 2, col = "red")
+
+# ACF of residuals
+acf(ecm$residuals, main = "ACF: ECM Residuals")
+```
+
+**Check**: Residuals should be white noise
+
+## Half-Life of Adjustment
+
+```{r}
+# Calculate half-life
+delta <- coef(ecm)["resid_lag"]
+
+if(delta < 0 && delta > -1) {
+  half_life <- log(0.5) / log(1 + delta)
+  
+  cat("Error correction coefficient:", round(delta, 3), "\n")
+  cat("Half-life of adjustment:", round(half_life, 1), "months\n\n")
+  cat("Interpretation:\n")
+  cat("- Each month,", round(abs(delta)*100, 1), "% of disequilibrium is corrected\n")
+  cat("- Takes ~", round(half_life, 1), "months to close half the gap\n")
+} else {
+  cat("Warning: Adjustment coefficient outside valid range\n")
+  cat("Should be between -1 and 0 for stable equilibrium\n")
+}
+```
+
+# Summary and Applications
+
+## When to Use Each Approach
+
+**Flowchart for regression with time series**:
+
+. . .
+
+**Step 1**: Check if Y and X are stationary (ADF test)
+
+- Both I(0) → Standard regression ✓
+- Different orders → Carefully consider (usually problematic)
+- Both I(1) → Go to Step 2
+
+. . .
+
+**Step 2**: Test for cointegration (ADF on residuals)
+
+- Cointegrated → Use ECM ✓
+- Not cointegrated → Use first differences
+
+## Decision Tree
+
+```{r echo=FALSE, out.width="90%"}
+# Create a simple decision tree visualization
+library(DiagrammeR)
+
+# Note: This would create an actual diagram, but for simplicity
+# we'll describe it in text form
+
+cat("
+TIME SERIES REGRESSION DECISION TREE
+====================================
+
+1. Test Y and X for stationarity
+   │
+   ├─ Both I(0)? 
+   │   └─> Use standard OLS: Y ~ X
+   │
+   ├─ Mixed orders (one I(0), one I(1))?
+   │   └─> Problem! Carefully reconsider
+   │
+   └─ Both I(1)?
+       └─> Test for cointegration
+           │
+           ├─ Cointegrated?
+           │   └─> Use Error Correction Model
+           │
+           └─ Not cointegrated?
+               └─> Use first differences: ΔY ~ ΔX
+")
+```
+
+## Summary: Key Concepts
+
+**Spurious Regression**:
+- Non-stationary series can show false relationships
+- Check residual stationarity
+- ~75% false positives with random walks!
+
+. . .
+
+**Integration**:
+- I(0) = stationary
+- I(1) = one difference needed
+- I(2) = two differences needed
+
+. . .
+
+**Cointegration**:
+- Long-run equilibrium between I(1) series
+- Test: ADF on cointegrating residuals
+- Examples: consumption-income, interest rate term structure
+
+. . .
+
+**Error Correction**:
+- Combines short-run dynamics + long-run equilibrium
+- Error correction speed determines adjustment rate
+
+## Common Pitfalls
+
+**❌ Don't**:
+- Regress non-stationary series without checking
+- Ignore residual diagnostics
+- Use differencing when cointegrated
+- Forget to test assumptions
+
+. . .
+
+**✓ Do**:
+- Always test for stationarity first
+- Check if residuals are stationary
+- Test for cointegration before differencing
+- Interpret error correction coefficient
+- Use appropriate lags
+
+## Applications in Economics
+
+**Cointegration is everywhere**:
+
+. . .
+
+**Macro**: 
+- Consumption and income
+- Money demand relationships
+- Exchange rate relationships (PPP)
+
+. . .
+
+**Finance**:
+- Spot and futures prices
+- Stock prices and dividends
+- Interest rates across maturities
+
+. . .
+
+**Trade**:
+- Import and export prices
+- Exchange rates and trade balances
+
+## Practice Problems
+
+**Problem 1**: Spurious Regression Detection
+- Simulate two independent random walks
+- Run regression and check residuals
+- Compare with differenced regression
+
+. . .
+
+**Problem 2**: Cointegration Testing
+- Use consumption and income data
+- Test each for unit root
+- Estimate cointegrating relationship
+- Test residuals for stationarity
+
+. . .
+
+**Problem 3**: Error Correction Model
+- Using cointegrated series from Problem 2
+- Estimate ECM
+- Interpret error correction coefficient
+- Calculate adjustment half-life
+
+## Additional Resources
+
+**Textbooks**:
+- Hamilton, *Time Series Analysis* - Ch 19-20
+- Enders, *Applied Econometric Time Series* - Ch 6
+- [Penn State STAT 510](https://online.stat.psu.edu/stat510/) - Lesson 8
+
+**Online Resources**:
+- [Cointegration Tutorial](https://www.eco.uc3m.es/~jgonzalo/teaching/econometriaii/cointegration.htm)
+- [Error Correction Models](https://www.youtube.com/watch?v=OXZgQaZWfNk)
+
+**R Packages**:
+- `tseries::adf.test()` - Unit root testing
+- `urca` - Comprehensive unit root and cointegration tests
+- `vars` - Vector autoregressions and ECMs
+
+## Next Topics
+
+**Vector Autoregressions (VAR)**:
+- Multiple equations
+- Everything depends on everything
+- Impulse response functions
+
+. . .
+
+**Granger Causality**:
+- Does X help forecast Y?
+- Bidirectional testing
+- Applications in macro
+
+. . .
+
+**Structural Breaks**:
+- When relationships change
+- Testing for breaks
+- Cointegration with breaks
+
+## Questions?
+
+**Office hours**: [Your schedule]
+
+**Email**: [Your email]
+
+. . .
+
+**Key takeaways**:
+- Non-stationary data → spurious regression risk
+- Test for cointegration before differencing
+- ECM captures both short and long-run dynamics
+- Always check your residuals!
+
+. . .
+
+**Next class**: Vector Autoregressions (VAR models)

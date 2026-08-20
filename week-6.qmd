@@ -1,0 +1,24 @@
+---
+title: "Week 6: X Variables, Cointegration, and Dynamic Regression"
+---
+
+Bringing predictors into a time-series model: distributed lags, dynamic regression, spurious regression, unit-root testing, and cointegration with error-correction models.
+
+## Lecture Slides
+
+- [X Variables and Cointegration](slides/x_variables_improved_10.html){target="_blank"}
+- [X Variables](slides/x_variables_improved_11.html){target="_blank"}
+
+Slides open in a new tab. They are self-contained — use the arrow keys to move
+through them, and `Esc` for the slide overview.
+
+## Reading
+
+Diebold Ch. 15–16; FPP3 Ch. 9
+
+## Due this week
+
+- HW 5
+
+Everything is due at **11:59 pm ET on the Sunday that closes the module week**,
+unless Canvas says otherwise.

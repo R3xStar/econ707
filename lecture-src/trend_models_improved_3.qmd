@@ -1,0 +1,1657 @@
+---
+title: "Trend Models"
+subtitle: "Week 3"
+author: "Rex Sitti"
+institute: "Old Dominion University"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: https://www.odu.edu/content/dam/odu/logos/univ/png-72dpi/odu-secondarytm-blu.png
+    footer: "ECON 707/807: Econometrics II"
+  
+self-contained: true
+  
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(out.width = '90%')
+par(mar = c(4.1, 4.1, 1.1, 4.1))
+
+# Custom plotting function for cleaner base R plots
+nice_plot <- function(...) {
+  plot(..., las = 1, bty = "n", 
+       col.axis = "gray30", col.lab = "gray30")
+}
+
+# Helper functions for forecast evaluation
+rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2, na.rm = TRUE))
+}
+
+mae <- function(actual, predicted) {
+  mean(abs(actual - predicted), na.rm = TRUE)
+}
+
+mape <- function(actual, predicted) {
+  mean(abs((actual - predicted) / actual) * 100, na.rm = TRUE)
+}
+
+# Helper function to find data files
+find_data <- function(filename) {
+  possible_paths <- c(
+    file.path("../data", filename),
+    file.path("data", filename),
+    file.path(".", filename)
+  )
+  
+  for(path in possible_paths) {
+    if(file.exists(path)) return(path)
+  }
+  
+  # If file not found, return NULL to trigger synthetic data generation
+  return(NULL)
+}
+
+# Safe data loader with fallback to synthetic data
+load_data_safe <- function(filename, generator_func) {
+  data_path <- find_data(filename)
+  
+  if (!is.null(data_path)) {
+    # Real data found - load it
+    if (grepl("\\.csv$", filename)) {
+      return(read.csv(data_path))
+    } else if (grepl("\\.RDS$", filename)) {
+      return(readRDS(data_path))
+    }
+  } else {
+    # Generate synthetic data with warning
+    message("Note: Using simulated data for ", filename, 
+            " (real data not found in expected locations)")
+    return(generator_func())
+  }
+}
+```
+
+```{r data-generators, include=FALSE}
+library("lubridate")
+
+# Synthetic data generator for PCE
+generate_pce_data <- function() {
+  set.seed(123)
+  dates <- seq(ymd("1960-01-01"), ymd("2016-12-01"), by = "quarter")
+  n <- length(dates)
+  
+  # Generate trend with some noise
+  trend <- 50 + seq(0.01, 0.05, length.out = n) * 1:n
+  noise <- rnorm(n, 0, 0.5)
+  
+  data.frame(
+    date = as.character(dates),
+    pc = trend + noise
+  )
+}
+
+# Synthetic data generator for crime/stop-and-frisk
+generate_crime_snf_data <- function() {
+  set.seed(456)
+  dates <- seq(ymd("2007-01-01"), ymd("2016-12-31"), by = "day")
+  n <- length(dates)
+  
+  crime <- data.frame(
+    date = dates,
+    freq = rpois(n, 150) + rnorm(n, 0, 5)
+  )
+  
+  # Stop & frisk with structural break
+  snf_base <- 400
+  post_may_2012 <- dates > ymd("2012-05-16")
+  post_march_2013 <- dates > ymd("2013-03-18")
+  post_aug_2013 <- dates > ymd("2013-08-12")
+  
+  freq <- snf_base - 
+    100 * post_may_2012 - 
+    150 * post_march_2013 - 
+    100 * post_aug_2013 +
+    rnorm(n, 0, 20)
+  freq[freq < 0] <- rpois(sum(freq < 0), 10)
+  
+  snf <- data.frame(
+    date = dates,
+    freq = freq
+  )
+  
+  list(crime, snf)
+}
+
+# Synthetic data generator for labor force participation
+generate_labor_data <- function() {
+  set.seed(789)
+  dates <- seq(ymd("1960-01-01"), ymd("2016-12-01"), by = "month")
+  n <- length(dates)
+  
+  time_idx <- 1:n
+  
+  # Men: declining trend
+  men <- 80 - 0.003 * time_idx + rnorm(n, 0, 0.5)
+  
+  # Women: increasing then flattening
+  women_trend <- 40 + 0.015 * time_idx
+  women_flatten <- ifelse(dates > ymd("1992-01-01"), 
+                          57 + rnorm(sum(dates > ymd("1992-01-01")), 0, 0.3),
+                          women_trend[dates <= ymd("1992-01-01")])
+  women <- c(women_trend[dates <= ymd("1992-01-01")], 
+             women_flatten[dates > ymd("1992-01-01")])
+  
+  data.frame(
+    date = dates,
+    men = men,
+    women = women
+  )
+}
+
+# Synthetic data generator for sales
+generate_sales_data <- function() {
+  set.seed(101)
+  dates <- seq(ymd("1980-01-01"), ymd("2000-12-01"), by = "month")
+  n <- length(dates)
+  
+  time_idx <- 1:n
+  sales <- 100 + 2 * time_idx + 0.01 * time_idx^2 + rnorm(n, 0, 10)
+  
+  data.frame(
+    date = dates,
+    sales = sales
+  )
+}
+
+# Synthetic data generator for S&P volume
+generate_sandp_data <- function() {
+  set.seed(202)
+  dates <- seq(ymd("1980-01-01"), ymd("2000-12-01"), by = "week")
+  n <- length(dates)
+  
+  time_idx <- 1:n
+  volume <- exp(8 + 0.005 * time_idx + rnorm(n, 0, 0.3))
+  
+  data.frame(
+    date = dates,
+    volume = volume
+  )
+}
+```
+
+## Learning Objectives
+
+By the end of this session, you will be able to:
+
+1. Calculate and interpret prediction intervals vs. confidence intervals
+
+2. Identify when to use structural breaks vs. trend models
+
+3. Select appropriate functional forms for trend models
+
+4. Implement and evaluate forecasts using R
+
+5. Understand the limitations of atheoretical forecasting methods
+
+## Topics
+
+1. Forecast Variance & Prediction Intervals
+
+2. Structural Breaks
+    - Mean shifts
+    - Identifying break dates
+    
+3. Trend Models
+    - Functional forms (linear, quadratic, exponential)
+    - Trend breaks (splines)
+    - Model evaluation
+
+## Motivating Example: GDP Forecasting
+
+$$ GDP_t = \alpha + \beta_1i_t + \beta_2u_t + \epsilon_t$$
+
+$$ \hat{GDP}_t = \hat{\alpha} + \hat{\beta}_1i_t + \hat{\beta}_2u_t, \ \ \text{for} \ t \in \{0, ..., T\}$$
+
+. . .
+
+Suppose you estimate $\hat{\alpha} = 10$, $\hat{\beta}_1 = 4$, and $\hat{\beta}_2 = -2$
+
+. . .
+
+**For forecasting** at $t \in \{T+1, ..., T + h\}$:
+
+$$\hat{GDP}_t = 10 + 4i_t - 2u_t$$
+
+. . .
+
+**Question**: How certain are we about these forecasts?
+
+# Forecast Variance & Prediction Intervals
+
+## Review: Sample Mean
+
+We are almost always after $\mu$, the population average.
+
+. . .
+
+However, we almost always need to settle for $\bar{x}$:
+
+$$ \bar{x} = \frac{1}{n}\sum_{i=1}^{n}x_i $$
+
+. . .
+
+The population has variance $\sigma^2$, which we estimate as $s^2$.
+
+. . .
+
+Then $\bar{x}$ has a **standard error**: $\text{SE}(\bar{x}) = \sqrt{\frac{s^2}{n}}$
+
+. . .
+
+*Key insight*: $\bar{x} - \mu$ has the same variance as $\bar{x}$
+
+## Forecast Variance Decomposition {auto-animate="true"}
+
+When we forecast $y_{T+h}$ using our estimate $\hat{\beta}_0$, the prediction error is:
+
+$$y_{T+h} - \hat{\beta}_0 = \underbrace{e_{T+h}}_{\text{Future shock}} + \underbrace{(\beta_0 - \hat{\beta}_0)}_{\text{Estimation error}}$$
+
+. . .
+
+The variance of this prediction error decomposes into two parts:
+
+. . .
+
+:::: {.columns}
+
+::: {.column width="50%"}
+**Future Uncertainty**
+
+$$ \text{Var}(e_{T+h}) = \sigma^2 $$
+
+Cannot be reduced!
+:::
+
+::: {.column width="50%"}
+**Estimation Uncertainty**
+
+$$ \text{Var}(\beta_0 - \hat{\beta}_0) = \frac{\sigma^2}{T} $$
+
+Shrinks with sample size
+:::
+
+::::
+
+## Forecast Variance Formula {visibility="uncounted" auto-animate="true"}
+
+Total forecast variance:
+
+$$\text{Var}(y_{T+h} - \hat{\beta}_0) = \sigma^2 + \frac{\sigma^2}{T}$$
+
+. . .
+
+Factor out $\sigma^2$:
+
+$$= \left(1 + \frac{1}{T}\right)\sigma^2$$
+
+. . .
+
+**Prediction standard error**:
+
+$$ SE_{\text{prediction}} = \sqrt{\left(1 + \frac{1}{T}\right)\sigma^2} $$
+
+. . .
+
+Compare to **confidence interval** standard error: $\sqrt{\frac{\sigma^2}{T}}$
+
+## Prediction Intervals vs. Confidence Intervals
+
+**Confidence Interval** (for the mean):
+
+$$\bar{x} \pm z \cdot \sqrt{\frac{s^2}{n}}$$
+
+Tells us where the **true population mean** lies
+
+. . .
+
+**Prediction Interval** (for a new observation):
+
+$$\hat{y} \pm z \cdot \sqrt{\left(1 + \frac{1}{T}\right)s^2}$$
+
+Tells us where a **new observation** will fall
+
+. . .
+
+**Key difference**: Prediction intervals are always wider because they include both future shock uncertainty AND estimation uncertainty
+
+## Practical Example: Why This Matters
+
+Forecasting quarterly GDP with $T = 220$ observations:
+
+- Confidence interval multiplier: $\sqrt{\frac{1}{220}} \approx 0.067$
+- Prediction interval multiplier: $\sqrt{1 + \frac{1}{220}} \approx 1.002$
+
+. . .
+
+The prediction interval is approximately **15 times wider**!
+
+. . .
+
+For a policy maker deciding whether GDP will exceed 3% growth, this distinction is **critical**.
+
+## Calculate Prediction Intervals in R
+
+Load Personal Consumption Expenditure data:
+
+```{r}
+#| output-location: slide
+#| code-line-numbers: "1-3|5-6|8-13"
+# Load data (real or synthetic)
+pce <- load_data_safe("DPCERL1Q225SBEA.csv", generate_pce_data)
+colnames(pce) <- c("date", "pc")
+
+pce$date <- ymd(pce$date)
+pce$horizon <- pce$date > ymd("2013-09-01")
+
+# Plot the estimation sample only
+nice_plot(pce$date[!pce$horizon],
+          pce$pc[!pce$horizon],
+          type = "l",
+          ylab = "Personal Consumption Expenditure",
+          xlab = "Quarter")
+```
+
+## Estimate the Model
+
+Simplest forecast: just use the sample mean
+
+```{r}
+reg <- lm(pc ~ 1, data = pce[!pce$horizon,])
+summary(reg)
+```
+
+. . .
+
+```{r}
+mean(pce$pc[!pce$horizon])
+```
+
+## Compare Intervals
+
+**Confidence Interval** (for the mean):
+```{r}
+pred_ci <- predict(reg, interval = "confidence", level = 0.90)
+pred_ci[1,]
+```
+
+. . .
+
+**Prediction Interval** (for a new observation):
+```{r}
+pred_pi <- predict(reg, interval = "prediction", level = 0.90)
+pred_pi[1,]
+```
+
+. . .
+
+Notice the prediction interval is $(54.0, 56.0)$ vs. confidence interval $(55.0, 55.0)$
+
+The prediction interval is approximately $\sqrt{1 + 1/T} \approx 1.006$ times wider
+
+## Visualizing the Difference
+
+```{r}
+#| output-location: slide
+#| code-fold: true
+nice_plot(pce$date[!pce$horizon],
+          pce$pc[!pce$horizon], 
+          type = "l",
+          ylab = "Personal Consumption Expenditure",
+          xlab = "Quarter",
+          ylim = c(min(pred_pi[,2]), max(pred_pi[,3])))
+lines(pce$date[!pce$horizon], pred_pi[,1], col = "tomato", lwd = 2)
+lines(pce$date[!pce$horizon], pred_pi[,2], col = "dodgerblue", lty = 2, lwd = 2)
+lines(pce$date[!pce$horizon], pred_pi[,3], col = "dodgerblue", lty = 2, lwd = 2)
+legend("topleft", 
+       legend = c("Actual", "Fitted", "90% Prediction Interval"),
+       col = c("black", "tomato", "dodgerblue"),
+       lty = c(1, 1, 2), lwd = c(1, 2, 2),
+       bty = "n")
+```
+
+## Out-of-Sample Forecasting
+
+```{r}
+#| output-location: slide
+#| code-line-numbers: "1-4|5-12|13-16"
+# Generate predictions for the holdout period
+pred_horizon <- predict(reg, 
+                        newdata = pce[pce$horizon,],
+                        interval = "prediction", level = 0.90)
+
+# Subset for cleaner visualization
+plot_data <- pce$date >= ymd("2000-01-01")
+nice_plot(pce$date[!pce$horizon & plot_data],
+          pce$pc[!pce$horizon & plot_data], 
+          type = "l",
+          xlim = ymd(c("2000-01-01", "2016-01-01")),
+          ylim = c(min(pce$pc), max(pce$pc)),
+          ylab = "Personal Consumption Expenditure",
+          xlab = "Quarter")
+lines(pce$date[pce$horizon], pred_horizon[,1], col = "tomato", lwd = 2)
+lines(pce$date[pce$horizon], pred_horizon[,2], col = "dodgerblue", lty = 2)
+lines(pce$date[pce$horizon], pred_horizon[,3], col = "dodgerblue", lty = 2)
+```
+
+## Out-of-Sample Performance
+
+```{r}
+#| code-fold: true
+#| output-location: slide
+nice_plot(pce$date[!pce$horizon & plot_data],
+          pce$pc[!pce$horizon & plot_data], 
+          type = "l",
+          xlim = ymd(c("2000-01-01", "2016-01-01")),
+          ylim = c(min(pce$pc), max(pce$pc)),
+          ylab = "Personal Consumption Expenditure",
+          xlab = "Quarter")
+
+# Add forecast
+lines(pce$date[pce$horizon], pred_horizon[,1], col = "tomato", lwd = 2, lty = 2)
+lines(pce$date[pce$horizon], pred_horizon[,2], col = "dodgerblue", lty = 2)
+lines(pce$date[pce$horizon], pred_horizon[,3], col = "dodgerblue", lty = 2)
+
+# Add actual values
+lines(pce$date[pce$horizon], pce$pc[pce$horizon], lwd = 2)
+
+legend("topleft",
+       legend = c("Training", "Actual Test", "Forecast", "90% PI"),
+       col = c("black", "black", "tomato", "dodgerblue"),
+       lty = c(1, 1, 2, 2), lwd = c(1, 2, 2, 1),
+       bty = "n")
+```
+
+. . .
+
+The constant mean model performs poorly! We need something more sophisticated.
+
+# Two Patterns in Data
+
+## Pattern 1: Sharp Breaks vs Pattern 2: Gradual Trends
+
+```{r}
+#| output-location: slide
+#| code-fold: true
+par(mfrow = c(1,2))
+
+# Sharp break
+data("AirPassengers")
+nice_plot(as.numeric(time(AirPassengers)), 
+          as.numeric(AirPassengers),
+          type = "l",
+          ylab = "Air Passengers",
+          xlab = "Year",
+          main = "Gradual Trend")
+
+# Gradual trend (using the PCE data)
+nice_plot(pce$date[!pce$horizon],
+          pce$pc[!pce$horizon],
+          type = "l",
+          ylab = "Personal Consumption",
+          xlab = "Quarter",
+          main = "Could Be Either")
+```
+
+. . .
+
+**Key Question**: Is the mean changing abruptly or gradually?
+
+# Structural Breaks: Sharp Mean Shifts
+
+## When the Mean Jumps
+
+What if there is a policy change or major structural event?
+
+. . .
+
+**Example**: Stop and Frisk policy changes in New York City
+
+. . .
+
+Characteristics of sharp mean shifts:
+
+- Difficult to anticipate *ex ante*
+- Often due to policy changes, regulatory shifts, or major shocks
+- Can "ruin" your forecasting model if not accounted for
+- Require judgment about when breaks occurred
+
+## NYPD Data: Crime and Stop & Frisk
+
+We have daily counts of both crime complaints and stop & frisk incidents
+
+```{r}
+#| code-fold: true
+# Load data (real or synthetic)
+crime_snf <- load_data_safe("crime_snf.RDS", generate_crime_snf_data)
+crime <- crime_snf[[1]]
+snf <- crime_snf[[2]]
+
+# Focus on 2007-2016 (using proper date comparison)
+date_start <- ymd("2007-01-01")
+date_end <- ymd("2016-12-31")
+crime <- crime[crime$date >= date_start & crime$date <= date_end, ]
+snf <- snf[snf$date >= date_start & snf$date <= date_end, ]
+
+# Aggregate to weekly level
+aggregate_weekly <- function(data) {
+  aggregate(list(freq = data$freq),
+            list(date = floor_date(data$date, "week")),
+            sum)
+}
+
+crime_weekly <- aggregate_weekly(crime)
+snf_weekly <- aggregate_weekly(snf)
+```
+
+## Weekly Crime Complaints
+
+```{r}
+#| code-fold: true
+nice_plot(crime_weekly$date, crime_weekly$freq,
+          type = "l",
+          xlab = "Week", 
+          ylab = "Crime Complaints")
+abline(v = ymd("2008-01-01") + years(0:8),
+       lty = 2, col = scales::alpha("black", .3))
+```
+
+Relatively stable over time, with some seasonal variation
+
+## Weekly Stop & Frisk Incidents
+
+```{r}
+#| code-fold: true
+plot_lim <- snf_weekly$date < ymd("2012-05-01")
+
+nice_plot(crime_weekly$date, crime_weekly$freq,
+          type = "l",
+          xlab = "Week", 
+          ylab = "Frequency",
+          col = scales::alpha("black", .3),
+          ylim = c(min(snf_weekly$freq[plot_lim]), 
+                   max(snf_weekly$freq[plot_lim])))
+
+lines(snf_weekly$date[plot_lim], snf_weekly$freq[plot_lim],
+      col = "dodgerblue", lwd = 2)
+
+abline(v = ymd("2008-01-01") + years(0:8),
+       lty = 2, col = scales::alpha("black", .3))
+
+legend("topright",
+       legend = c("Crime Complaints", "Stop & Frisk"),
+       col = c(scales::alpha("black", .3), "dodgerblue"),
+       lty = 1, lwd = c(1, 2), bty = "n")
+```
+
+## Floyd *et al.* v. City of New York: Why These Dates Matter {.smaller}
+
+Timeline of the landmark civil rights case:
+
+- **Jan. 31, 2008**: Center for Constitutional Rights files initial complaint
+- **Nov. 7, 2008**: CCR files Motion for Class Certification
+- **May 16, 2012**: Judge grants Class Certification → NYPD knows lawsuit is serious
+- **Mar 18, 2013**: Trial begins → Public scrutiny intensifies
+- **Aug 12, 2013**: Judge rules City liable → Policy must change
+- **May 6, 2022**: Monitoring continues (disparities persist)
+
+. . .
+
+**Research Question**: Did NYPD behavior change *before* the final ruling?
+
+These dates provide **exogenous variation** in Stop & Frisk intensity
+
+## The Dramatic Decline
+
+```{r}
+#| code-fold: true
+post_cert <- snf_weekly$date >= ymd("2012-05-01")
+
+nice_plot(crime_weekly$date, crime_weekly$freq,
+          type = "l",
+          xlab = "Week", 
+          ylab = "Frequency",
+          col = scales::alpha("black", .3),
+          ylim = c(min(snf_weekly$freq), max(snf_weekly$freq)))
+
+lines(snf_weekly$date[!post_cert], snf_weekly$freq[!post_cert],
+      col = "dodgerblue", lwd = 2)
+
+lines(snf_weekly$date[post_cert], snf_weekly$freq[post_cert],
+      col = "tomato", lwd = 2)
+
+abline(v = ymd("2008-01-01") + years(0:8),
+       lty = 2, col = scales::alpha("black", .3))
+
+legend("topright",
+       legend = c("Crime", "S&F: Pre-Cert", "S&F: Post-Cert"),
+       col = c(scales::alpha("black", .3), "dodgerblue", "tomato"),
+       lty = 1, lwd = c(1, 2, 2), bty = "n")
+```
+
+## Zooming In: The Critical Period
+
+```{r}
+#| code-fold: true
+zoom <- snf_weekly$date >= ymd("2010-01-01") & snf_weekly$date <= ymd("2015-01-01")
+
+nice_plot(snf_weekly$date[zoom], snf_weekly$freq[zoom],
+          type = "l",
+          xlab = "Week", 
+          ylab = "Stop & Frisk Incidents",
+          col = "gray50", lwd = 2)
+
+# Highlight the different periods
+lines(snf_weekly$date[!post_cert & zoom], 
+      snf_weekly$freq[!post_cert & zoom],
+      col = "dodgerblue", lwd = 2)
+
+lines(snf_weekly$date[post_cert & zoom], 
+      snf_weekly$freq[post_cert & zoom],
+      col = "tomato", lwd = 2)
+
+# Mark key court dates
+abline(v = ymd(c("2012-05-16", "2013-03-18", "2013-08-12")),
+       col = "mediumseagreen", lwd = 2)
+
+text(ymd("2012-05-16"), max(snf_weekly$freq[zoom]), 
+     "Class\nCert", pos = 4, cex = 0.8)
+text(ymd("2013-03-18"), max(snf_weekly$freq[zoom]) * 0.9, 
+     "Trial\nStarts", pos = 4, cex = 0.8)
+text(ymd("2013-08-12"), max(snf_weekly$freq[zoom]) * 0.8, 
+     "Ruling", pos = 4, cex = 0.8)
+```
+
+## Modeling Breaks: Our Options
+
+1. **Throw out old data** and estimate only on the "new" subsample
+   - Pros: Simple, uses only relevant data
+   - Cons: Loses information, can't quantify the change
+
+. . .
+
+2. **Use dummy variables** to model the break
+   - Pros: Quantifies the shift, uses all data
+   - Cons: Need to know/choose when breaks occur
+
+. . .
+
+We'll focus on option 2: **dummy variable approach**
+
+## Dummy Variable Specification
+
+$$E[y_{t+h}|\Omega_t] = \beta_0 + \beta_1 \cdot \mathbb{1}(t > t^{*}) $$
+
+where $\mathbb{1}(t > t^{*})$ is an indicator function:
+
+- $\mathbb{1}(t > t^{*}) = 0$ if $t \leq t^{*}$
+- $\mathbb{1}(t > t^{*}) = 1$ if $t > t^{*}$
+
+. . .
+
+**Interpretation**:
+
+- $\beta_0$ = mean level before the break
+- $\beta_0 + \beta_1$ = mean level after the break
+- $\beta_1$ = size of the jump at time $t^{*}$
+
+## Estimating Multiple Breaks
+
+```{r}
+#| output-location: slide
+# Estimate baseline (no breaks)
+reg1 <- lm(freq ~ 1, data = snf_weekly)
+
+# Create break indicators for key court dates
+snf_weekly$post_cert <- as.numeric(snf_weekly$date > ymd("2012-05-16"))
+snf_weekly$post_trial <- as.numeric(snf_weekly$date > ymd("2013-03-18"))
+snf_weekly$post_ruling <- as.numeric(snf_weekly$date > ymd("2013-08-12"))
+
+# Estimate model with breaks
+reg2 <- lm(freq ~ post_cert + post_trial + post_ruling, 
+           data = snf_weekly)
+
+# Create comparison table
+coef1 <- summary(reg1)$coefficients
+coef2 <- summary(reg2)$coefficients
+
+# Format results
+results_df <- data.frame(
+  Variable = c("Constant", "", "Post-Certification", "Post-Trial", "Post-Ruling"),
+  `No Breaks` = c(
+    sprintf("%.2f***", coef1[1,1]),
+    sprintf("(%.2f)", coef1[1,2]),
+    "", "", ""
+  ),
+  `Three Breaks` = c(
+    sprintf("%.2f***", coef2[1,1]),
+    sprintf("(%.2f)", coef2[1,2]),
+    sprintf("%.2f***", coef2[2,1]),
+    sprintf("%.2f***", coef2[3,1]),
+    sprintf("%.2f***", coef2[4,1])
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(results_df, 
+             caption = "Weekly Stop & Frisk Count Regression Results",
+             align = c("l", "c", "c"))
+```
+
+## Interpreting the Results
+
+```{r}
+coef(reg2)
+```
+
+. . .
+
+**Mean levels**:
+
+- Before May 2012: `r round(coef(reg2)[1], 1)` incidents per week
+- May 2012-Mar 2013: `r round(coef(reg2)[1] + coef(reg2)[2], 1)` (-`r round(abs(coef(reg2)[2]), 1)`)
+- Mar 2013-Aug 2013: `r round(coef(reg2)[1] + coef(reg2)[2] + coef(reg2)[3], 1)` (-`r round(abs(coef(reg2)[3]), 1)` more)
+- After Aug 2013: `r round(coef(reg2)[1] + coef(reg2)[2] + coef(reg2)[3] + coef(reg2)[4], 1)` (-`r round(abs(coef(reg2)[4]), 1)` more)
+
+. . .
+
+The behavior changed **well before** the final ruling!
+
+## Visualizing Model Fit
+
+```{r}
+#| code-fold: true
+zoom <- snf_weekly$date >= ymd("2010-01-01") & snf_weekly$date <= ymd("2015-01-01")
+
+nice_plot(snf_weekly$date[zoom], snf_weekly$freq[zoom],
+          type = "l",
+          xlab = "Week", 
+          ylab = "Stop & Frisk Incidents",
+          col = "dodgerblue", lwd = 1,
+          ylim = c(min(snf_weekly$freq[zoom]), 
+                   max(snf_weekly$freq[zoom])))
+
+# Mark break dates
+abline(v = ymd(c("2012-05-16", "2013-03-18", "2013-08-12")),
+       col = "black", lwd = 1)
+
+# Add fitted values
+lines(snf_weekly$date, predict(reg1, snf_weekly), 
+      lty = 2, lwd = 2, col = "tomato")
+lines(snf_weekly$date, predict(reg2, snf_weekly), 
+      lty = 1, col = "mediumseagreen", lwd = 2)
+
+legend("topright", 
+       bty = "n", 
+       lty = c(1, 2, 1),
+       lwd = c(1, 2, 2),
+       legend = c("Actual", "No Breaks", "Three Breaks"), 
+       cex = 0.9,
+       col = c("dodgerblue", "tomato", "mediumseagreen"))
+```
+
+## Important Context: Crime Trends
+
+Remember: Policy makers might have viewed declining crime + increasing stops as success!
+
+. . .
+
+But **correlation ≠ causation**
+
+. . .
+
+The court case provides **exogenous variation**:
+
+- The timing of legal events is (arguably) independent of crime trends
+- Changes in Stop & Frisk were forced by the court
+- This helps us separate policy effects from other factors
+
+. . .
+
+For more on crime and policing: Donohue & Levitt (2001), "The Impact of Legalized Abortion on Crime"
+
+## Selecting Break Dates: Be Careful!
+
+How should we select break dates?
+
+1. **Theory/Judgment**: Policy changes, known events
+   - *Best approach when possible*
+   
+2. **Visual Inspection**: Look at plots
+   - *Useful for hypothesis generation*
+   
+3. **Data-Driven**: Test all possible dates
+   - *High risk of overfitting ("p-hacking")*
+
+. . .
+
+**Warning**: The more breaks you test, the higher the chance of finding spurious breaks!
+
+## Example: Data-Driven Break Selection
+
+```{r}
+#| code-fold: true
+# Search for optimal break point by R-squared
+n_obs <- nrow(snf_weekly)
+rsqr <- numeric(n_obs - 21)  # Exclude first/last 10 obs
+
+for(i in 11:(n_obs - 10)) {
+  snf_weekly$break_temp <- as.numeric(
+    snf_weekly$date > (min(snf_weekly$date) + weeks(i))
+  )
+  model_temp <- lm(freq ~ break_temp, data = snf_weekly)
+  rsqr[i - 10] <- summary(model_temp)$r.squared
+}
+
+rsqr_plot <- c(rep(NA, 10), rsqr, rep(NA, 10))
+max_date <- snf_weekly$date[which.max(rsqr_plot)]
+
+nice_plot(snf_weekly$date, rsqr_plot, 
+          ylab = "R-Squared",
+          xlab = "",
+          type = "l", lwd = 2,
+          ylim = c(0, 1))
+
+# Add scaled actual data for context
+lines(snf_weekly$date, 
+      snf_weekly$freq / max(snf_weekly$freq),
+      col = scales::alpha("black", .3))
+
+abline(v = max_date, col = "red", lwd = 2)
+text(max_date, 0.9, paste("Best break:", max_date), pos = 4)
+```
+
+. . .
+
+**Question**: Should we trust this date? Why or why not?
+
+# Trend Models: Gradual Change
+
+## When the Mean Changes Gradually
+
+Sometimes the mean doesn't jump—it drifts over time
+
+. . .
+
+**Intuition**: If we believe the mean is changing **gradually** rather than jumping abruptly, we need to model that smooth change
+
+. . .
+
+**Trend Model**: $y_{t} = f(\text{time}_t) + \epsilon_t$
+
+. . .
+
+Different functional forms for $f(\cdot)$:
+
+- **Linear**: $\beta_0 + \beta_1 \cdot \text{Time}_t$
+- **Quadratic**: $\beta_0 + \beta_1 \cdot \text{Time}_t + \beta_2 \cdot \text{Time}_t^2$
+- **Exponential**: $\log(y_t) = \beta_0 + \beta_1 \cdot \text{Time}_t$
+
+## Choosing Trend Specifications
+
+**When to use which functional form?**
+
+:::: {.columns}
+
+::: {.column width="50%"}
+**Linear Trend**
+
+- Constant growth (e.g., labor force participation)
+- Steady increase/decrease
+
+**Quadratic Trend**
+
+- Growth that accelerates or decelerates
+- Product lifecycle, S-curves
+:::
+
+::: {.column width="50%"}
+**Exponential Trend**
+
+- Percentage growth
+- Financial markets, population
+- Compound growth processes
+
+**Spline/Break**
+
+- Structural breaks in trend
+- Policy changes affecting growth rate
+:::
+
+::::
+
+## Example: Linear Trend
+
+```{r}
+#| code-fold: true
+labor <- load_data_safe("labor_particip.RDS", generate_labor_data)
+lim <- labor$date < ymd("1992-01-01")
+
+par(mfrow = c(1,2))
+nice_plot(labor$date[lim], labor$men[lim], 
+          type = "l",
+          xlab = "Year", 
+          ylab = "Participation Rate",
+          main = "Men")
+nice_plot(labor$date[lim], labor$women[lim], 
+          type = "l",
+          xlab = "Year", 
+          ylab = "Participation Rate",
+          main = "Women")
+```
+
+Women's labor force participation shows a clear upward linear trend
+
+## Example: Quadratic Trend
+
+```{r}
+#| code-fold: true
+sales <- load_data_safe("sales.RDS", generate_sales_data)
+lim <- sales$date < ymd("1993-01-01")
+
+nice_plot(sales$date[lim], sales$sales[lim], 
+          type = "l",
+          xlab = "Year", 
+          ylab = "Sales")
+```
+
+Sales accelerate then decelerate—classic quadratic pattern
+
+## Example: Exponential Trend
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1,2))
+sandp <- load_data_safe("sandp.RDS", generate_sandp_data)
+lim <- sandp$date < ymd("1992-01-01")
+
+nice_plot(sandp$date[lim], sandp$volume[lim], 
+          type = "l",
+          xlab = "Year", 
+          ylab = "S&P Trading Volume",
+          main = "Levels")
+
+nice_plot(sandp$date[lim], log(sandp$volume[lim]), 
+          type = "l",
+          xlab = "Year", 
+          ylab = "Log(Volume)",
+          main = "Log Scale",
+          col = scales::alpha("tomato", .7))
+
+lines(sandp$date[lim], asinh(sandp$volume[lim]), 
+      col = scales::alpha("dodgerblue", .7))
+
+legend("topleft", 
+       legend = c("log()", "asinh()"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, bty = "n")
+```
+
+::: aside
+**Note**: `asinh()` (inverse hyperbolic sine) is similar to `log()` but handles zeros and negative values
+:::
+
+## Fitting Linear Trends in R
+
+```{r}
+#| output-location: fragment
+lim <- labor$date < ymd("1993-01-01")
+
+# Create time index (months since start)
+labor$time <- interval(min(labor$date), labor$date) %/% months(1)
+
+# Model 1: Use date directly
+reg_date <- lm(women ~ date, data = labor[lim,])
+
+# Model 2: Use time index
+reg_time <- lm(women ~ time, data = labor[lim,])
+
+# Create comparison table
+coef_date <- summary(reg_date)$coefficients
+coef_time <- summary(reg_time)$coefficients
+
+results_df <- data.frame(
+  Variable = c("Constant", "", "Date/Time", ""),
+  `Date Variable` = c(
+    sprintf("%.5f", coef_date[1,1]),
+    sprintf("(%.5f)", coef_date[1,2]),
+    sprintf("%.5f***", coef_date[2,1]),
+    sprintf("(%.5f)", coef_date[2,2])
+  ),
+  `Time Index` = c(
+    sprintf("%.5f", coef_time[1,1]),
+    sprintf("(%.5f)", coef_time[1,2]),
+    sprintf("%.5f***", coef_time[2,1]),
+    sprintf("(%.5f)", coef_time[2,2])
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(results_df,
+             caption = "Women's Labor Force Participation: Linear Trend Models",
+             align = c("l", "c", "c"))
+```
+
+## Interpreting Linear Trend Results
+
+**Model with time index**:
+```{r}
+coef(reg_time)
+```
+
+. . .
+
+**Interpretation**:
+
+- Starting level (month 0): `r round(coef(reg_time)[1], 2)`%
+- Monthly increase: `r round(coef(reg_time)[2], 3)`%
+- Annual increase: `r round(coef(reg_time)[2] * 12, 2)`%
+
+. . .
+
+Over the 25-year estimation period, participation increased by approximately `r round(coef(reg_time)[2] * 12 * 25, 1)` percentage points
+
+## Visualizing the Fit
+
+```{r}
+#| code-fold: true
+pred <- predict(reg_time, interval = "prediction", level = 0.90)
+
+nice_plot(labor$date[lim], labor$women[lim], 
+          type = "l",
+          xlab = "Year", 
+          ylab = "Labor Force Participation (%)",
+          main = "Women's LFP: In-Sample Fit")
+
+lines(labor$date[lim], reg_time$fitted.values,
+      col = "tomato", lty = 2, lwd = 2)
+
+lines(labor$date[lim], pred[,2], col = "dodgerblue", lwd = 1.5)
+lines(labor$date[lim], pred[,3], col = "dodgerblue", lwd = 1.5)
+
+legend("topleft",
+       legend = c("Actual", "Fitted", "90% Prediction Interval"),
+       col = c("black", "tomato", "dodgerblue"),
+       lty = c(1, 2, 1), lwd = c(1, 2, 1.5),
+       bty = "n")
+```
+
+## Out-of-Sample Forecasting
+
+```{r}
+#| code-fold: true
+# Predict for post-1993 period
+new_lim <- labor$date >= ymd("1980-01-01") & labor$date <= ymd("2009-12-01")
+forecast <- predict(reg_time, 
+                    newdata = labor[!lim,], 
+                    interval = "prediction", 
+                    level = 0.90)
+
+nice_plot(labor$date[new_lim & lim],
+          labor$women[new_lim & lim],
+          type = "l",
+          xlab = "Year", 
+          ylab = "Labor Force Participation (%)",
+          xlim = c(min(labor$date[new_lim]), max(labor$date[new_lim])),
+          ylim = c(min(labor$women[new_lim], forecast[,2]),
+                   max(labor$women[new_lim], forecast[,3])))
+
+# In-sample fit
+lines(labor$date[lim], reg_time$fitted.values,
+      col = "tomato", lty = 2, lwd = 2)
+lines(labor$date[lim], pred[,2], col = "dodgerblue")
+lines(labor$date[lim], pred[,3], col = "dodgerblue")
+
+# Out-of-sample forecast
+lines(labor$date[!lim], forecast[,1], 
+      col = "tomato", lty = 2, lwd = 2)
+lines(labor$date[!lim], forecast[,2], col = "mediumseagreen")
+lines(labor$date[!lim], forecast[,3], col = "mediumseagreen")
+
+legend("topleft",
+       legend = c("Actual (train)", "Fitted", "In-sample PI", "Forecast", "Out-of-sample PI"),
+       col = c("black", "tomato", "dodgerblue", "tomato", "mediumseagreen"),
+       lty = c(1, 2, 1, 2, 1), 
+       lwd = c(1, 2, 1, 2, 1),
+       bty = "n", cex = 0.8)
+```
+
+## The Forecast Fails Dramatically
+
+```{r}
+#| code-fold: true
+nice_plot(labor$date[new_lim & lim],
+          labor$women[new_lim & lim],
+          type = "l",
+          xlab = "Year", 
+          ylab = "Labor Force Participation (%)",
+          xlim = c(min(labor$date[new_lim]), max(labor$date[new_lim])),
+          ylim = c(min(labor$women[new_lim], forecast[,2]),
+                   max(labor$women[new_lim], forecast[,3])))
+
+# In-sample
+lines(labor$date[lim], reg_time$fitted.values,
+      col = "tomato", lty = 2, lwd = 2)
+lines(labor$date[lim], pred[,2], col = "dodgerblue")
+lines(labor$date[lim], pred[,3], col = "dodgerblue")
+
+# Out-of-sample forecast
+lines(labor$date[!lim], forecast[,1], 
+      col = "tomato", lty = 2, lwd = 2)
+lines(labor$date[!lim], forecast[,2], col = "mediumseagreen")
+lines(labor$date[!lim], forecast[,3], col = "mediumseagreen")
+
+# ACTUAL data
+lines(labor$date[!lim], labor$women[!lim], lwd = 2)
+
+text(ymd("2000-01-01"), 75, 
+     "Trend breaks down!", 
+     col = "red", cex = 1.2, font = 2)
+```
+
+. . .
+
+**Lesson**: Past trends don't always continue!
+
+## Quadratic Trends
+
+For the sales data, try both linear and quadratic:
+
+```{r}
+#| code-fold: true
+lim <- sales$date < ymd("1995-01-01")
+sales$time <- interval(min(sales$date), sales$date) %/% months(1)
+
+reg_linear <- lm(sales ~ time, data = sales[lim,])
+reg_quad <- lm(sales ~ time + I(time^2), data = sales[lim,])
+
+nice_plot(sales$time[lim], sales$sales[lim], 
+          type = "l",
+          xlab = "Months Since Start", 
+          ylab = "Sales")
+
+lines(sales$time[lim], reg_linear$fitted.values, 
+      col = "tomato", lwd = 2)
+lines(sales$time[lim], reg_quad$fitted.values, 
+      col = "dodgerblue", lwd = 2)
+
+legend("topleft",
+       legend = c("Actual", "Linear", "Quadratic"),
+       col = c("black", "tomato", "dodgerblue"),
+       lty = 1, lwd = c(1, 2, 2),
+       bty = "n")
+```
+
+## Quadratic Out-of-Sample Performance
+
+```{r}
+#| code-fold: true
+forecast_quad <- predict(reg_quad, newdata = sales[!lim,])
+
+nice_plot(sales$time[lim], sales$sales[lim], 
+          type = "l",
+          xlab = "Months Since Start", 
+          ylab = "Sales",
+          xlim = c(min(sales$time), max(sales$time)),
+          ylim = c(min(sales$sales, forecast_quad),
+                   max(sales$sales, forecast_quad)))
+
+lines(sales$time[lim], reg_quad$fitted.values, 
+      col = "dodgerblue", lwd = 2)
+
+lines(sales$time[!lim], forecast_quad, 
+      col = "dodgerblue", lty = 2, lwd = 2)
+
+legend("topleft",
+       legend = c("Actual (train)", "Fitted", "Forecast"),
+       col = c("black", "dodgerblue", "dodgerblue"),
+       lty = c(1, 1, 2), lwd = c(1, 2, 2),
+       bty = "n")
+```
+
+## Quadratic Forecast vs. Reality
+
+```{r}
+#| code-fold: true
+nice_plot(sales$time[lim], sales$sales[lim], 
+          type = "l",
+          xlab = "Months Since Start", 
+          ylab = "Sales",
+          xlim = c(min(sales$time), max(sales$time)),
+          ylim = c(min(sales$sales, forecast_quad),
+                   max(sales$sales, forecast_quad)))
+
+lines(sales$time[lim], reg_quad$fitted.values, 
+      col = "dodgerblue", lwd = 2)
+
+# Actual out-of-sample data
+lines(sales$time[!lim], sales$sales[!lim], lwd = 2)
+
+# Forecast
+lines(sales$time[!lim], forecast_quad, 
+      col = "dodgerblue", lty = 2, lwd = 2)
+
+legend("topleft",
+       legend = c("Train", "Fitted", "Actual Test", "Forecast"),
+       col = c("black", "dodgerblue", "black", "dodgerblue"),
+       lty = c(1, 1, 1, 2), lwd = c(1, 2, 2, 2),
+       bty = "n")
+```
+
+. . .
+
+Much better fit! The quadratic captures the turning point.
+
+## Exponential Trends
+
+For S&P volume data:
+
+```{r}
+#| code-fold: true
+lim <- sandp$date < ymd("1990-01-01")
+sandp$time <- interval(min(sandp$date), sandp$date) %/% weeks(1)
+
+# Model with log transformation
+reg_log <- lm(log(volume) ~ time, data = sandp[lim,])
+
+# Model with asinh transformation (handles zeros better)
+reg_asinh <- lm(asinh(volume) ~ time, data = sandp[lim,])
+
+par(mfrow = c(1, 2))
+
+# Left panel: Levels
+nice_plot(sandp$time[lim], sandp$volume[lim], 
+          type = "l",
+          xlab = "Weeks", 
+          ylab = "S&P Trading Volume",
+          main = "Original Scale")
+
+lines(sandp$time[lim], exp(reg_log$fitted.values),
+      col = scales::alpha("tomato", .5), lwd = 3)
+lines(sandp$time[lim], sinh(reg_asinh$fitted.values),
+      col = scales::alpha("dodgerblue", .5), lwd = 3)
+
+# Right panel: Transformed
+nice_plot(sandp$time[lim], log(sandp$volume[lim]),
+          type = "l",
+          xlab = "Weeks", 
+          ylab = "Transformed Volume",
+          col = scales::alpha("tomato", .7),
+          ylim = c(min(log(sandp$volume[lim])),
+                   max(asinh(sandp$volume[lim]))),
+          main = "Transformed Scale")
+
+lines(sandp$time[lim], asinh(sandp$volume[lim]),
+      col = scales::alpha("dodgerblue", .7))
+
+lines(sandp$time[lim], reg_log$fitted.values,
+      col = scales::alpha("tomato", .5), lwd = 3)
+lines(sandp$time[lim], reg_asinh$fitted.values,
+      col = scales::alpha("dodgerblue", .5), lwd = 3)
+
+legend("topleft", 
+       legend = c("log()", "asinh()"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+## Exponential Forecast
+
+```{r}
+#| code-fold: true
+forecast_asinh <- predict(reg_asinh, 
+                          newdata = sandp[!lim,], 
+                          interval = "prediction",
+                          level = 0.90)
+
+nice_plot(sandp$time[lim], sandp$volume[lim], 
+          type = "l",
+          xlab = "Weeks", 
+          ylab = "S&P Trading Volume",
+          xlim = c(min(sandp$time), max(sandp$time)),
+          ylim = c(0, max(sinh(forecast_asinh[,3]))))
+
+lines(sandp$time[lim], sinh(reg_asinh$fitted.values),
+      col = scales::alpha("dodgerblue", .7), lwd = 3)
+
+lines(sandp$time[!lim], sinh(forecast_asinh[,1]),
+      col = scales::alpha("dodgerblue", .7),
+      lwd = 3, lty = 2)
+
+lines(sandp$time[!lim], sinh(forecast_asinh[,2]),
+      col = scales::alpha("dodgerblue", .5), lwd = 2)
+lines(sandp$time[!lim], sinh(forecast_asinh[,3]),
+      col = scales::alpha("dodgerblue", .5), lwd = 2)
+
+legend("topleft",
+       legend = c("Train", "Fitted", "Forecast", "90% PI"),
+       col = c("black", rep("dodgerblue", 3)),
+       lty = c(1, 1, 2, 1), 
+       lwd = c(1, 3, 3, 2),
+       bty = "n")
+```
+
+## Exponential Forecast vs. Reality
+
+```{r}
+#| code-fold: true
+nice_plot(sandp$time[lim], sandp$volume[lim], 
+          type = "l",
+          xlab = "Weeks", 
+          ylab = "S&P Trading Volume",
+          xlim = c(min(sandp$time), max(sandp$time)),
+          ylim = c(0, max(sandp$volume, sinh(forecast_asinh[,3]))))
+
+# Actual test data
+lines(sandp$time[!lim], sandp$volume[!lim], lwd = 1)
+
+# In-sample fit
+lines(sandp$time[lim], sinh(reg_asinh$fitted.values),
+      col = scales::alpha("dodgerblue", .7), lwd = 3)
+
+# Forecast
+lines(sandp$time[!lim], sinh(forecast_asinh[,1]),
+      col = scales::alpha("dodgerblue", .7),
+      lwd = 3, lty = 2)
+
+lines(sandp$time[!lim], sinh(forecast_asinh[,2]),
+      col = scales::alpha("dodgerblue", .5), lwd = 2)
+lines(sandp$time[!lim], sinh(forecast_asinh[,3]),
+      col = scales::alpha("dodgerblue", .5), lwd = 2)
+
+legend("topleft",
+       legend = c("Train", "Fitted", "Test", "Forecast", "90% PI"),
+       col = c("black", "dodgerblue", "black", "dodgerblue", "dodgerblue"),
+       lty = c(1, 1, 1, 2, 1), 
+       lwd = c(1, 3, 1, 3, 2),
+       bty = "n")
+```
+
+# Critical Issues with Trend Models
+
+## Problems with Trend Forecasting
+
+1. **Trends understate uncertainty**
+   - Extrapolation assumes the future is like the past
+   - Reality: structural breaks happen
+
+. . .
+
+2. **Uncertainty grows with forecast horizon**
+   - Prediction intervals widen: $\sqrt{(1 + 1/T + h^2/\text{trend variance})}$
+   - Quadratic trends especially problematic (explosive growth)
+
+. . .
+
+3. **Choice of sample matters enormously**
+   - Too short: insufficient data
+   - Too long: includes irrelevant periods
+
+. . .
+
+4. **Growth rates often more stable than levels**
+   - Forecasters typically predict $\Delta y_t$, then cumulate
+
+## The Fundamental Problem
+
+**Trend models have no economic theory!**
+
+. . .
+
+They assume:
+
+- The past determines the future
+- Relationships are stable
+- No regime changes
+- No structural shifts
+
+. . .
+
+**But**: Economies evolve, policies change, technologies emerge
+
+. . .
+
+**Better approach**: Build models based on economic relationships (we'll do this later!)
+
+# Trend Breaks: Splines
+
+## What if the Trend Itself Changes?
+
+Sometimes the **trend** (not just the level) shifts:
+
+$$y_t = \beta_0 + \beta_1 \text{Time}_t + \beta_2 \cdot \mathbb{1}(\text{Time}_t > t^*)$$
+
+**Intercept break**: Level shifts, trend continues
+
+. . .
+
+$$y_t = \beta_0 + \beta_1 \text{Time}_t + \beta_2 \text{Time}_t \cdot \mathbb{1}(\text{Time}_t > t^*)$$
+
+**Slope break**: Trend changes
+
+. . .
+
+$$y_t = \beta_0 + \beta_1 \text{Time}_t + \beta_2 \cdot \mathbb{1}(\text{Time}_t > t^*) + \beta_3 \text{Time}_t \cdot \mathbb{1}(\text{Time}_t > t^*)$$
+
+**Both**: Level and trend both shift
+
+::: aside
+Same challenge: How do you choose $t^*$? Risk of data mining/"p-hacking"
+:::
+
+## Spline Interpretation
+
+Consider: $y_t = \beta_0 + \beta_1 \text{Time}_t + \beta_2 \text{Time}_t \cdot \mathbb{1}(\text{Time}_t > t^*)$
+
+. . .
+
+**Before the break** ($t \leq t^*$):
+$$y_t = \beta_0 + \beta_1 \text{Time}_t$$
+Trend is $\beta_1$
+
+. . .
+
+**After the break** ($t > t^*$):
+$$y_t = \beta_0 + \beta_1 \text{Time}_t + \beta_2 \text{Time}_t = \beta_0 + (\beta_1 + \beta_2) \text{Time}_t$$
+Trend is $\beta_1 + \beta_2$
+
+. . .
+
+$\beta_2$ measures the **change in trend** at time $t^*$
+
+# Evaluating Forecasts
+
+## Forecast Error Metrics
+
+We need ways to measure forecast accuracy. Common metrics:
+
+. . .
+
+**Mean Absolute Error (MAE)**:
+$$\text{MAE} = \frac{1}{h}\sum_{t=1}^{h}|e_t| = \frac{1}{h}\sum_{t=1}^{h}|y_t - \hat{y}_t|$$
+
+Units: same as $y$. Easy to interpret.
+
+. . .
+
+**Root Mean Squared Error (RMSE)**:
+$$\text{RMSE} = \sqrt{\frac{1}{h}\sum_{t=1}^{h}e_t^2}$$
+
+Units: same as $y$. Penalizes large errors more.
+
+. . .
+
+**Mean Absolute Percentage Error (MAPE)**:
+$$\text{MAPE} = \frac{1}{h}\sum_{t=1}^{h}\frac{|e_t|}{|y_t|} \times 100\%$$
+
+Scale-free. Good for comparing across series.
+
+## Implementing Metrics in R
+
+We already defined these in the setup:
+
+```{r, echo=TRUE}
+# Mean Absolute Error
+mae <- function(actual, predicted) {
+  mean(abs(actual - predicted), na.rm = TRUE)
+}
+
+# Root Mean Squared Error
+rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2, na.rm = TRUE))
+}
+
+# Mean Absolute Percentage Error
+mape <- function(actual, predicted) {
+  mean(abs((actual - predicted) / actual) * 100, na.rm = TRUE)
+}
+```
+
+## Example: Comparing Models
+
+```{r}
+# Get predictions for labor force model
+actual_test <- labor$women[!lim]
+predicted_linear <- forecast[,1]
+
+# Calculate metrics
+cat("Linear Trend Model Performance:\n")
+cat("MAE:  ", round(mae(actual_test, predicted_linear), 3), "\n")
+cat("RMSE: ", round(rmse(actual_test, predicted_linear), 3), "\n")
+cat("MAPE: ", round(mape(actual_test, predicted_linear), 3), "%\n")
+```
+
+. . .
+
+Try this with different models to see which performs best!
+
+## Key Takeaways
+
+1. **Prediction intervals are wider than confidence intervals** by $\sqrt{1 + 1/T}$
+   - They include both future shock and estimation uncertainty
+
+2. **Sharp breaks → Use dummy variables**
+   - Identify breaks from theory/events when possible
+
+3. **Gradual changes → Use trend models**
+   - Choose functional form based on data patterns
+   - Linear, quadratic, exponential
+
+4. **Trends are atheoretical**
+   - Past trends don't always continue
+   - Uncertainty grows with forecast horizon
+   - Use with caution!
+
+5. **Always evaluate out-of-sample**
+   - Use MAE, RMSE, MAPE
+   - In-sample fit can be misleading
+
+## Next Class
+
+Topics:
+
+- Autocorrelation in time series
+- White noise processes
+- Moving average models
+- Exam 1 review
+
+. . .
+
+**Prepare**:
+
+- Review forecast evaluation metrics
+- Practice with trend models
+- Bring questions for exam review
+
+## Programming Tips
+
+**R Operators: `*` vs `:`**
+
+```{r}
+# Multiplication has higher precedence than sequence
+1:10 * 2    # Same as (1:10) * 2
+1:(10 * 2)  # Sequence from 1 to 20
+
+# Always use parentheses for clarity!
+```
+
+. . .
+
+**Creating Polynomials**:
+
+```{r, eval=FALSE}
+# Correct way to include squared term
+lm(y ~ time + I(time^2), data = df)
+
+# Wrong way (this doesn't work!)
+lm(y ~ time + time^2, data = df)
+```
+
+## Practice Problem
+
+**Your turn!**
+
+1. Load the Personal Consumption Expenditure data
+2. Fit three models:
+   - Constant mean
+   - Linear trend
+   - Quadratic trend
+3. Generate forecasts for 2014-2016
+4. Calculate MAE, RMSE, and MAPE for each
+5. Which model performs best?
+
+. . .
+
+Bonus: Try adding a structural break at the 2008 financial crisis!
+
+## References {.smaller}
+
+- Donohue, J. J., & Levitt, S. D. (2001). The Impact of Legalized Abortion on Crime. *Quarterly Journal of Economics*, 116(2), 379-420.
+
+- Floyd, et al. v. City of New York, et al., 08 Civ. 1034 (SAS) (S.D.N.Y.)
+
+- NYPD Stop, Question and Frisk Database: https://www.nyc.gov/site/nypd/stats/reports-analysis/stopfrisk.page
+
+- Center for Constitutional Rights: https://ccrjustice.org/home/what-we-do/our-cases/floyd-et-al-v-city-new-york-et-al
+
+## Additional Resources
+
+**For deeper study**:
+
+- Hyndman & Athanasopoulos, *Forecasting: Principles and Practice* (free online)
+- Hamilton, *Time Series Analysis*
+- Diebold, *Elements of Forecasting*
+
+**R packages**:
+
+- `forecast`: Comprehensive forecasting tools
+- `fpp3`: Tidy forecasting (accompanies textbook)
+- `tsibble`: Tidy time series data
+
+**Office hours**: [Your schedule here]

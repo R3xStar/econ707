@@ -1,0 +1,23 @@
+---
+title: "Week 8: Review and Comprehensive Final Examination"
+---
+
+Pulling the session together: comparing models on the same series, information criteria, out-of-sample evaluation, and choosing between the approaches covered this term.
+
+## Lecture Slides
+
+- [Model Selection and Forecasting](slides/model_selection_improved_08.html){target="_blank"}
+
+Slides open in a new tab. They are self-contained — use the arrow keys to move
+through them, and `Esc` for the slide overview.
+
+## Reading
+
+—
+
+## Due this week
+
+- Final Exam (Modules 1–7)
+
+Everything is due at **11:59 pm ET on the Sunday that closes the module week**,
+unless Canvas says otherwise.

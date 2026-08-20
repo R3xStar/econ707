@@ -1,0 +1,1437 @@
+---
+title: "Seasonality in Time Series"
+subtitle: "Week 7: Advanced Time Series Modeling"
+author: "Rex Sitti"
+institute: "Old Dominion University"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: https://www.odu.edu/content/dam/odu/logos/univ/png-72dpi/odu-secondarytm-blu.png
+    footer: "ECON 707/807: Econometrics II"
+  
+self-contained: true
+  
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(out.width = '90%')
+par(mar = c(4.1, 4.1, 1.1, 4.1))
+set.seed(123)
+
+# Load required packages
+library("lubridate")
+library("forecast")
+library("scales")
+library("lmtest")
+library("sandwich")
+
+# Custom plotting function
+nice_plot <- function(...) {
+  plot(..., las = 1, bty = "n", 
+       col.axis = "gray30", col.lab = "gray30")
+}
+
+# Helper function to find data files
+find_data <- function(filename) {
+  possible_paths <- c(
+    file.path("../data", filename),
+    file.path("data", filename),
+    file.path(".", filename)
+  )
+  
+  for(path in possible_paths) {
+    if(file.exists(path)) return(path)
+  }
+  
+  return(NULL)
+}
+
+# Safe data loader with fallback
+load_data_safe <- function(filename, generator_func) {
+  data_path <- find_data(filename)
+  
+  if (!is.null(data_path)) {
+    if (grepl("\\.csv$", filename)) {
+      data <- read.csv(data_path, stringsAsFactors = FALSE)
+      return(data)
+    } else if (grepl("\\.RDS$", filename)) {
+      return(readRDS(data_path))
+    }
+  } else {
+    message("Note: Using simulated data for ", filename)
+    return(generator_func())
+  }
+}
+```
+
+```{r data-generators, include=FALSE}
+# Synthetic data generator for liquor sales
+generate_liquor_data <- function() {
+  set.seed(456)
+  dates <- seq(ymd("1992-01-01"), ymd("2019-12-01"), by = "month")
+  n <- length(dates)
+  
+  # Create trend
+  time_idx <- 1:n
+  trend <- 200 + 0.8 * time_idx
+  
+  # Add strong seasonality (higher sales in December)
+  seasonal <- 50 * sin(2 * pi * time_idx / 12 - pi/2)
+  
+  # Add noise
+  noise <- rnorm(n, 0, 15)
+  
+  # Combine for raw sales
+  sales <- trend + seasonal + noise
+  
+  # Create seasonally adjusted (remove seasonal component)
+  sales_adj <- trend + noise
+  
+  # Return dates as Date objects for proper plotting
+  data.frame(
+    date = dates,
+    sales = sales,
+    sales_adj = sales_adj
+  )
+}
+
+# Synthetic data generator for bicycle counts
+generate_bike_data <- function() {
+  set.seed(789)
+  # Hourly data from 2013-2016
+  start_date <- ymd_hms("2013-01-01 00:00:00")
+  end_date <- ymd_hms("2016-12-31 23:00:00")
+  dates <- seq(start_date, end_date, by = "hour")
+  n <- length(dates)
+  
+  # Time features
+  hour_of_day <- hour(dates)
+  day_of_week <- wday(dates)
+  month <- month(dates)
+  
+  # Base level with annual trend
+  base <- 50 + 0.01 * 1:n
+  
+  # Hourly pattern (rush hours)
+  hourly_pattern <- ifelse(hour_of_day %in% 7:9, 40, 
+                          ifelse(hour_of_day %in% 16:18, 50, 10))
+  
+  # Day of week pattern (weekdays higher)
+  dow_pattern <- ifelse(day_of_week %in% 2:6, 30, -20)
+  
+  # Seasonal pattern (summer higher)
+  seasonal_pattern <- 40 * sin(2 * pi * month / 12 - pi/2)
+  
+  # Weather effect (random good/bad days)
+  weather <- rnorm(n, 0, 20)
+  
+  # Combine
+  counts <- pmax(0, base + hourly_pattern + dow_pattern + 
+                   seasonal_pattern + weather)
+  
+  data.frame(
+    date = dates,
+    Fremont.Bridge.Total = round(counts)
+  )
+}
+```
+
+## Learning Objectives
+
+By the end of this session, you will be able to:
+
+1. **Distinguish** between deterministic and stochastic trends
+
+2. **Understand** deterministic vs. stochastic seasonality
+
+3. **Estimate** seasonal models using dummy variables and SARIMA
+
+4. **Apply** seasonal adjustment techniques
+
+5. **Compute** robust standard errors (HC and HAC)
+
+6. **Forecast** with seasonal patterns and prediction intervals
+
+## Today's Roadmap
+
+1. **Trends + Cycles**: Combining trend and ARMA components
+
+2. **Deterministic vs Stochastic Trends**: Critical distinction
+
+3. **Seasonality**: Patterns that repeat within a year
+
+4. **SARIMA Models**: Seasonal ARIMA
+
+5. **Standard Errors**: Robust inference (HC, HAC)
+
+6. **Real Example**: Seattle's Fremont Bridge bicycle counter
+
+# Decomposing Time Series
+
+## The Complete Time Series Model
+
+$$Y_{t} = T_t + C_t + S_t + \epsilon_t$$
+
+where:
+
+- $T_t$ = **Trend** component
+- $C_t$ = **Cycle** component (AR/MA)
+- $S_t$ = **Seasonal** component
+- $\epsilon_t$ = **Random** error
+
+. . .
+
+**So far we've covered**:
+
+- $Y_t = T_t$ → Linear regression: `lm(y ~ t, data)`
+- $Y_t = C_t$ → ARMA models: `arima(y, c(p, 0, q))`
+
+. . .
+
+**Today**: $Y_t = T_t + C_t$ and $Y_t = T_t + C_t + S_t$
+
+## Combining Trends and Cycles
+
+**Question**: How do we estimate $Y_t = T_t + C_t$?
+
+. . .
+
+**Example 1**: Constant + AR(1)
+$$Y_{t} = \underbrace{\alpha}_{T_t} + \underbrace{(\gamma Y_{t-1} + e_t)}_{C_t}$$
+
+. . .
+
+**Example 2**: Linear trend + AR(1)
+$$Y_{t} = \underbrace{(\alpha + \beta t)}_{T_t} + \underbrace{(\gamma Y_{t-1} + e_t)}_{C_t}$$
+
+. . .
+
+**Implementation**: Use `xreg` argument in `auto.arima()`
+
+```r
+auto.arima(y, xreg = time_index)
+```
+
+# Deterministic vs Stochastic Trends
+
+## Two Types of Trends
+
+**Deterministic Trend**:
+$$Y_t = \alpha t + e_t$$
+
+Predictable, systematic growth
+
+. . .
+
+**Stochastic Trend** (Random Walk with Drift):
+$$Y_t = \alpha + Y_{t-1} + e_t$$
+
+Growth with permanent random shocks
+
+. . .
+
+**Key difference**: 
+- Deterministic: Shocks are temporary (series reverts to trend)
+- Stochastic: Shocks are permanent (series doesn't revert)
+
+## Simulated Examples
+
+```{r}
+#| code-fold: true
+set.seed(123)
+n <- 100
+shocks <- rnorm(n, 0, 2)
+
+# Deterministic trend
+det_trend <- 0:(n-1) + shocks
+
+# Stochastic trend (random walk with drift)
+stoch_trend <- numeric(n)
+stoch_trend[1] <- 0
+for(i in 2:n) {
+  stoch_trend[i] <- 1 + stoch_trend[i-1] + shocks[i]
+}
+
+nice_plot(1:n, det_trend, 
+          col = "tomato", type = "l", lwd = 2,
+          xlab = "Time", ylab = "Value",
+          ylim = range(det_trend, stoch_trend),
+          main = "Deterministic vs Stochastic Trends")
+lines(1:n, stoch_trend, col = "dodgerblue", lwd = 2)
+legend("topleft", 
+       legend = c("Deterministic: Y = t + ε", "Stochastic: Y = 1 + Y(t-1) + ε"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+## Mathematical Properties
+
+:::: {.columns}
+
+::: {.column width="48%"}
+**Deterministic**: $Y_t = \alpha t + e_t$
+
+. . .
+
+**Mean**:
+$$E[Y_t] = \alpha t$$
+Changes linearly with time
+
+. . .
+
+**Variance**:
+$$\text{Var}(Y_t) = \sigma^2$$
+Constant over time
+
+:::
+
+::: {.column width="48%"}
+**Stochastic**: $Y_t = \alpha + Y_{t-1} + e_t$
+
+. . .
+
+Expanding recursively:
+$$Y_t = \alpha t + \sum_{i=0}^{t}e_i$$
+
+. . .
+
+**Mean**:
+$$E[Y_t] = \alpha t$$
+Same as deterministic!
+
+. . .
+
+**Variance**:
+$$\text{Var}(Y_t) = t\sigma^2$$
+Grows with time!
+
+:::
+
+::::
+
+## Testing: Augmented Dickey-Fuller
+
+Start with:
+$$Y_t = \gamma + \beta Y_{t-1} + e_t$$
+
+. . .
+
+Subtract $Y_{t-1}$ from both sides:
+$$\Delta Y_t = \gamma + (\beta - 1) Y_{t-1} + e_t$$
+
+Let $\alpha = \beta - 1$:
+$$\Delta Y_t = \gamma + \alpha Y_{t-1} + e_t$$
+
+. . .
+
+**Augmented version** (accounts for autocorrelation):
+$$\Delta Y_t = \gamma + \rho t + \alpha Y_{t-1} + \sum_{i=1}^{p-1}\omega_i \Delta Y_{t-i} + e_t$$
+
+. . .
+
+**Test**: $H_0: \alpha = 0$ (unit root, non-stationary)
+
+If $\alpha = 0 \Rightarrow \beta = 1$ → Unit root → Stochastic trend
+
+## Distinguishing the Two: Detrending
+
+**Approach 1**: Remove linear trend
+
+```{r}
+#| code-fold: true
+time_index <- 1:n
+resid_det <- lm(det_trend ~ time_index)$residuals
+resid_stoch <- lm(stoch_trend ~ time_index)$residuals
+
+nice_plot(resid_det, col = "tomato", type = "l", lwd = 2,
+          xlab = "Time", ylab = "Residuals",
+          ylim = range(resid_det, resid_stoch),
+          main = "Detrended Series")
+lines(resid_stoch, col = "dodgerblue", lwd = 2)
+abline(h = 0, lty = 2, col = "gray50")
+legend("topleft", 
+       legend = c("Deterministic (stationary)", "Stochastic (still non-stationary)"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+**Observation**: Deterministic becomes stationary; stochastic doesn't!
+
+## Distinguishing the Two: Differencing
+
+**Approach 2**: Take first difference
+
+```{r}
+#| code-fold: true
+nice_plot(diff(det_trend), col = "tomato", type = "l", lwd = 2,
+          xlab = "Time", ylab = "First Difference",
+          ylim = range(diff(det_trend), diff(stoch_trend)),
+          main = "Differenced Series")
+lines(diff(stoch_trend), col = "dodgerblue", lwd = 2)
+abline(h = 0, lty = 2, col = "gray50")
+legend("topleft", 
+       legend = c("Deterministic (removes trend)", "Stochastic (stationary)"),
+       col = c("tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+**Observation**: Both become stationary, but deterministic shows systematic pattern
+
+## Statistical Tests
+
+```{r}
+# Test deterministic trend
+adf_det <- tseries::adf.test(det_trend)
+cat("Deterministic Trend ADF Test:\n")
+cat("p-value =", round(adf_det$p.value, 4), "\n")
+if(adf_det$p.value < 0.05) {
+  cat("Conclusion: Reject H0 → Stationary (trend-stationary)\n\n")
+} else {
+  cat("Conclusion: Fail to reject H0 → Non-stationary\n\n")
+}
+
+# Test stochastic trend
+adf_stoch <- tseries::adf.test(stoch_trend)
+cat("Stochastic Trend ADF Test:\n")
+cat("p-value =", round(adf_stoch$p.value, 4), "\n")
+if(adf_stoch$p.value < 0.05) {
+  cat("Conclusion: Reject H0 → Stationary\n")
+} else {
+  cat("Conclusion: Fail to reject H0 → Non-stationary (unit root)\n")
+}
+```
+
+## Practical Implications
+
+**If you have a deterministic trend**:
+- Detrending works well
+- Can use `xreg = time` in ARIMA
+- Forecasts follow the trend line
+
+. . .
+
+**If you have a stochastic trend**:
+- Must difference to achieve stationarity
+- Use ARIMA(p,1,q) with d=1
+- Uncertainty grows with forecast horizon
+
+. . .
+
+**In practice**: Often hard to distinguish; try both approaches and compare
+
+## Example: Moore's Law
+
+"The number of transistors doubles every 2 years"
+
+. . .
+
+If this is **deterministic**:
+$$Y_t = e^{\alpha + \beta t + \epsilon_t}$$
+
+Taking logs:
+$$\log(Y_t) = \alpha + \beta t + \epsilon_t$$
+
+. . .
+
+If doubling every 2 years:
+$$\frac{Y_t}{Y_{t-2}} = 2 \Rightarrow e^{2\beta} = 2 \Rightarrow \beta = \frac{\log(2)}{2}$$
+
+. . .
+
+**Test**: Estimate regression and test if $\hat{\beta} = \frac{\log(2)}{2} \approx 0.347$
+
+# Modeling Trends and Cycles
+
+## Liquor Sales Example
+
+```{r}
+#| code-fold: true
+liquor <- load_data_safe("liquor.csv", generate_liquor_data)
+if(!inherits(liquor$date, "Date")) {
+  liquor$date <- mdy(liquor$date)
+}
+liquor <- liquor[liquor$date < ymd("2020-01-01"),]
+liquor$t <- interval(min(liquor$date), liquor$date) %/% months(1)
+
+nice_plot(liquor$date, liquor$sales, type = "l", lwd = 2,
+          xlab = "Month", 
+          ylab = "Sales (Millions of Dollars)",
+          main = "Monthly Liquor Sales")
+```
+
+Clear upward trend - but is it deterministic or stochastic?
+
+## Model 1: ARIMA without Trend
+
+```{r}
+model_no_trend <- auto.arima(log(liquor$sales_adj))
+model_no_trend
+```
+
+Selected: ARIMA(`r model_no_trend$arma[1]`,`r model_no_trend$arma[6]`,`r model_no_trend$arma[2]`)
+
+## Model 2: ARIMA with Deterministic Trend
+
+```{r}
+model_with_trend <- auto.arima(log(liquor$sales_adj), xreg = liquor$t)
+model_with_trend
+```
+
+Selected: ARIMA(`r model_with_trend$arma[1]`,`r model_with_trend$arma[6]`,`r model_with_trend$arma[2]`) with drift
+
+## Comparing Model Fits
+
+```{r}
+cat("Model without trend - AIC:", round(AIC(model_no_trend), 2), "\n")
+cat("Model with trend    - AIC:", round(AIC(model_with_trend), 2), "\n\n")
+
+if(AIC(model_with_trend) < AIC(model_no_trend)) {
+  cat("Winner: Model with deterministic trend (lower AIC)")
+} else {
+  cat("Winner: Model without trend (lower AIC)")
+}
+```
+
+## Forecasting with Trend
+
+```{r}
+#| code-fold: true
+# Create forecast data
+forecast_periods <- 36
+forecast_dates <- max(liquor$date) + months(1:forecast_periods)
+forecast_t <- max(liquor$t) + 1:forecast_periods
+
+# Generate forecast
+forecast_result <- predict(model_with_trend, 
+                           newxreg = forecast_t, 
+                           n.ahead = forecast_periods)
+
+# Plot
+nice_plot(liquor$date, log(liquor$sales_adj),
+          type = "l", lwd = 2,
+          xlim = c(min(liquor$date), max(forecast_dates)),
+          ylim = range(log(liquor$sales_adj), 
+                      forecast_result$pred + 1.645*forecast_result$se),
+          xlab = "Date",
+          ylab = "log(Sales)",
+          main = "ARIMA Forecast with Deterministic Trend")
+
+lines(forecast_dates, forecast_result$pred, 
+      col = "tomato", lwd = 2)
+lines(forecast_dates, forecast_result$pred + 1.645*forecast_result$se, 
+      col = "tomato", lty = 2)
+lines(forecast_dates, forecast_result$pred - 1.645*forecast_result$se, 
+      col = "tomato", lty = 2)
+
+abline(v = max(liquor$date), lty = 2, col = "gray50")
+
+legend("topleft",
+       legend = c("Actual", "Forecast", "90% PI"),
+       col = c("black", "tomato", "tomato"),
+       lty = c(1, 1, 2), lwd = c(2, 2, 1),
+       bty = "n")
+```
+
+## Model Misspecification
+
+**What if we get the model wrong?**
+
+. . .
+
+**True model**: $Y_t = \mu_1 + \mu_2 t$
+
+But we estimate: $Y_t = \alpha + \beta Y_{t-1} + e_t$
+
+. . .
+
+From the truth:
+$$Y_{t-1} = \mu_1 + \mu_2(t-1)$$
+
+Solving for $\mu_2 t$:
+$$\mu_2 t = \mu_2 - \mu_1 + Y_{t-1}$$
+
+. . .
+
+Substituting back:
+$$Y_t = \mu_1 + (\mu_2 - \mu_1 + Y_{t-1}) = \mu_2 + Y_{t-1}$$
+
+A deterministic trend **looks like** an AR(1) with coefficient ≈ 1!
+
+## Simulation: Misspecification Bias
+
+True DGP: $Y_t = 0.1t + \epsilon_t$
+
+Estimated model: AR(1)
+
+```{r}
+#| code-fold: true
+set.seed(456)
+n_sims <- 100
+ar_coefficients <- numeric(n_sims)
+
+for(i in 1:n_sims) {
+  y_sim <- 0.1 * (1:100) + rnorm(100)
+  model_sim <- arima(y_sim, order = c(1, 0, 0))
+  ar_coefficients[i] <- coef(model_sim)[1]
+}
+
+nice_plot(table(round(ar_coefficients, 2)),
+          ylab = "Frequency",
+          xlab = "Estimated AR(1) Coefficient",
+          main = "Distribution of Misspecified Model Estimates",
+          type = "h", lwd = 3)
+abline(v = 1, col = "red", lty = 2, lwd = 2)
+text(1, max(table(round(ar_coefficients, 2))), 
+     "≈ 1.0", pos = 4, col = "red", cex = 1.2)
+```
+
+**Result**: Biased towards 1 (unit root)!
+
+# Seasonality
+
+## What is Seasonality?
+
+**Seasonal pattern**: Regular, predictable fluctuations within a year
+
+. . .
+
+**Deterministic seasonality**:
+- Completely repeating pattern
+- Same magnitude each period
+- Example: Store hours, day-of-week effects
+
+. . .
+
+**Stochastic seasonality**:
+- Roughly repeating pattern
+- Magnitude varies
+- Example: Weather, seasonal demand shocks
+
+. . .
+
+**Like trends**: Think about peak/trough magnitudes and consistency
+
+## Deterministic Seasonality
+
+If seasonality is deterministic, use **dummy variables**:
+
+$$S_{t} = \begin{cases}
+      \gamma_1 & \text{if January}\\
+      \gamma_2 & \text{if February}\\
+      \vdots & \vdots \\
+      \gamma_{12} & \text{if December}
+    \end{cases}$$
+
+. . .
+
+**Can be**:
+- Hourly (24 dummies)
+- Daily (7 dummies for day-of-week)
+- Monthly (12 dummies)
+- Quarterly (4 dummies)
+- Or combinations!
+
+## Liquor Sales: Visualizing Seasonality
+
+```{r}
+#| code-fold: true
+# Calculate month-over-month changes
+liquor$sales_change <- c(NA, diff(log(liquor$sales)))
+
+# Plot last 5 years
+recent <- liquor$date >= (max(liquor$date) - years(5))
+
+nice_plot(liquor$date[recent], liquor$sales_change[recent],
+          type = "l", lwd = 1.5,
+          xlab = "Month",
+          ylab = "Month-over-Month Growth Rate",
+          main = "Liquor Sales: Growth Rates")
+abline(h = 0, lty = 2, col = "gray50")
+
+# Highlight December peaks
+dec_months <- month(liquor$date[recent]) == 12
+points(liquor$date[recent][dec_months], 
+       liquor$sales_change[recent][dec_months],
+       col = "red", pch = 19, cex = 1.5)
+
+text(max(liquor$date) - months(6), 0.15, 
+     "December spikes", col = "red", pos = 4)
+```
+
+## Estimating Seasonal Effects
+
+```{r}
+# Create month factor
+liquor$month_factor <- factor(month(liquor$date), 
+                              labels = month.abb)
+
+# Estimate seasonal model
+seasonal_model <- lm(log(sales) ~ t + month_factor, data = liquor)
+
+# Extract monthly effects
+monthly_effects <- coef(seasonal_model)[grep("month_factor", names(coef(seasonal_model)))]
+
+# Create display table (showing a few months)
+effects_display <- data.frame(
+  Month = c("January (baseline)", month.abb[2:12]),
+  Effect = c(0, monthly_effects),
+  `Pct Impact` = c(0, round((exp(monthly_effects) - 1) * 100, 2))
+)
+
+knitr::kable(head(effects_display, 7), 
+             col.names = c("Month", "Coefficient", "% Impact"),
+             align = c("l", "r", "r"),
+             caption = "Seasonal Effects on Liquor Sales (partial table)")
+```
+
+## Seasonal Pattern Visualization
+
+```{r}
+#| code-fold: true
+# Calculate average by month
+monthly_avg <- aggregate(sales ~ month(date), 
+                        data = liquor, 
+                        FUN = mean)
+colnames(monthly_avg) <- c("month", "avg_sales")
+
+nice_plot(1:12, monthly_avg$avg_sales,
+          type = "b", pch = 19, lwd = 2, cex = 1.5,
+          xlab = "Month",
+          ylab = "Average Sales (Millions)",
+          main = "Average Sales by Month",
+          xaxt = "n")
+axis(1, at = 1:12, labels = month.abb)
+
+# Highlight December
+points(12, monthly_avg$avg_sales[12], 
+       col = "red", pch = 19, cex = 2)
+text(12, monthly_avg$avg_sales[12], 
+     "Holiday season", pos = 3, col = "red")
+```
+
+## Fitted Values: Trend + Seasonality
+
+```{r}
+#| code-fold: true
+# Plot recent data
+recent_idx <- liquor$date >= ymd("2015-01-01")
+
+nice_plot(liquor$date[recent_idx], 
+          log(liquor$sales[recent_idx]),
+          type = "l", lwd = 2,
+          xlab = "Month",
+          ylab = "log(Sales)",
+          main = "Actual vs Fitted (Trend + Seasonal)")
+
+lines(liquor$date[recent_idx], 
+      fitted(seasonal_model)[recent_idx],
+      col = "tomato", lwd = 2)
+
+legend("bottomright",
+       legend = c("Actual", "Trend + Seasonal"),
+       col = c("black", "tomato"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+## Seasonal Adjustment
+
+**Goal**: Remove seasonal component to see underlying trend
+
+```{r}
+#| code-fold: true
+# Create seasonally adjusted series by setting all months to baseline (January)
+liquor_baseline <- liquor
+# Set all months to the first level (January) to remove seasonal variation
+liquor_baseline$month_factor <- factor(rep("Jan", nrow(liquor)), 
+                                       levels = levels(liquor$month_factor))
+
+# Predict without seasonal component (all months treated as January)
+trend_only <- predict(seasonal_model, newdata = liquor_baseline)
+
+nice_plot(liquor$date, liquor$sales,
+          type = "l", col = alpha("black", 0.4), lwd = 2,
+          xlab = "Month",
+          ylab = "Sales (Millions)",
+          main = "Seasonal Adjustment Comparison")
+
+lines(liquor$date, liquor$sales_adj, 
+      col = alpha("tomato", 0.6), lwd = 2)
+
+lines(liquor$date, exp(trend_only), 
+      col = alpha("dodgerblue", 0.6), lwd = 2)
+
+legend("topleft",
+       legend = c("Raw Sales", "FRED Adjustment", "Our Adjustment"),
+       col = c("black", "tomato", "dodgerblue"),
+       lty = 1, lwd = 2, bty = "n")
+```
+
+## Combining Seasonal Dummies with ARIMA
+
+```{r}
+# Create model matrix for months (excluding intercept)
+month_dummies <- model.matrix(~ month_factor, data = liquor)[, -1]
+
+# Fit ARIMA with seasonal dummies
+arima_seasonal <- auto.arima(log(liquor$sales), 
+                             xreg = month_dummies)
+arima_seasonal
+```
+
+This combines:
+- ARIMA structure for autocorrelation
+- Dummy variables for seasonal effects
+- Best of both approaches!
+
+# SARIMA Models
+
+## Seasonal ARIMA (SARIMA)
+
+**SARIMA(p,d,q)(P,D,Q)**$_s$
+
+. . .
+
+**Non-seasonal part**: (p,d,q)
+- p = AR order
+- d = differencing
+- q = MA order
+
+. . .
+
+**Seasonal part**: (P,D,Q)$_s$
+- P = Seasonal AR order
+- D = Seasonal differencing
+- Q = Seasonal MA order
+- s = Seasonal period (12 for monthly, 4 for quarterly)
+
+## Understanding Seasonal Differencing
+
+**Regular differencing**: $\Delta Y_t = Y_t - Y_{t-1}$
+
+Removes short-term trends
+
+. . .
+
+**Seasonal differencing**: $\Delta_s Y_t = Y_t - Y_{t-s}$
+
+Removes seasonal patterns
+
+. . .
+
+**Example with monthly data** (s=12):
+$$\Delta_{12} Y_t = Y_t - Y_{t-12}$$
+
+Compares this January to last January
+
+## ACF of Liquor Sales
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(diff(log(liquor$sales)), 
+    main = "ACF: First Difference",
+    lag.max = 36)
+acf(diff(log(liquor$sales), lag = 12), 
+    main = "ACF: Seasonal Difference (lag 12)",
+    lag.max = 36)
+```
+
+**Observation**: Strong autocorrelation at seasonal lags (12, 24, 36)
+
+## PACF Analysis
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+pacf(diff(log(liquor$sales)), 
+     main = "PACF: First Difference",
+     lag.max = 36)
+pacf(diff(log(liquor$sales), lag = 12), 
+     main = "PACF: Seasonal Difference",
+     lag.max = 36)
+```
+
+## Comparing Differencing Approaches
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+
+nice_plot(diff(log(liquor$sales)), 
+          type = "l",
+          xlab = "Time",
+          ylab = "Value",
+          main = "First Difference Only")
+abline(h = 0, lty = 2, col = "red")
+
+nice_plot(diff(log(liquor$sales), lag = 12), 
+          type = "l",
+          xlab = "Time",
+          ylab = "Value",
+          main = "Seasonal Difference Only")
+abline(h = 0, lty = 2, col = "red")
+```
+
+## Double Differencing
+
+```{r}
+#| code-fold: true
+double_diff <- diff(diff(log(liquor$sales), lag = 12))
+
+nice_plot(double_diff, 
+          type = "l",
+          xlab = "Time",
+          ylab = "Value",
+          main = "First Difference of Seasonal Difference")
+abline(h = 0, lty = 2, col = "red")
+```
+
+Most stationary, but may be over-differenced
+
+## Estimating SARIMA Models
+
+```{r}
+#| warning: false
+# Model 1: ARIMA(1,1,1) - no seasonal component
+sarima_1 <- arima(log(liquor$sales), 
+                  order = c(1, 1, 1))
+
+# Model 2: SARIMA(1,1,1)(0,1,0)[12]
+sarima_2 <- arima(log(liquor$sales), 
+                  order = c(1, 1, 1),
+                  seasonal = list(order = c(0, 1, 0), period = 12))
+
+# Model 3: SARIMA(1,1,1)(1,0,0)[12]
+sarima_3 <- arima(log(liquor$sales), 
+                  order = c(1, 1, 1),
+                  seasonal = list(order = c(1, 0, 0), period = 12))
+```
+
+## Model Comparison
+
+```{r}
+comparison <- data.frame(
+  Model = c("ARIMA(1,1,1)", 
+            "SARIMA(1,1,1)(0,1,0)[12]",
+            "SARIMA(1,1,1)(1,0,0)[12]"),
+  AIC = c(AIC(sarima_1), AIC(sarima_2), AIC(sarima_3)),
+  BIC = c(BIC(sarima_1), BIC(sarima_2), BIC(sarima_3))
+)
+
+comparison$AIC <- round(comparison$AIC, 2)
+comparison$BIC <- round(comparison$BIC, 2)
+
+knitr::kable(comparison, align = c("l", "r", "r"),
+             caption = "SARIMA Model Comparison (Lower is better)")
+```
+
+**Winner**: `r comparison$Model[which.min(comparison$AIC)]`
+
+## Fitted Values Comparison
+
+```{r}
+#| code-fold: true
+plot_idx <- liquor$date >= ymd("2015-01-01")
+
+nice_plot(liquor$date[plot_idx], 
+          liquor$sales[plot_idx],
+          type = "l", lwd = 2,
+          xlab = "Month",
+          ylab = "Sales (Millions)",
+          main = "SARIMA Model Comparison")
+
+lines(liquor$date[plot_idx], 
+      exp(fitted(sarima_1))[plot_idx],
+      col = alpha("tomato", 0.6), lwd = 2)
+
+lines(liquor$date[plot_idx], 
+      exp(fitted(sarima_2))[plot_idx],
+      col = alpha("dodgerblue", 0.6), lwd = 2)
+
+lines(liquor$date[plot_idx], 
+      exp(fitted(sarima_3))[plot_idx],
+      col = alpha("mediumseagreen", 0.6), lwd = 2)
+
+legend("bottomleft",
+       legend = c("Actual", "ARIMA(1,1,1)", 
+                  "SARIMA(1,1,1)(0,1,0)[12]",
+                  "SARIMA(1,1,1)(1,0,0)[12]"),
+       col = c("black", "tomato", "dodgerblue", "mediumseagreen"),
+       lty = 1, lwd = 2, bty = "n", cex = 0.8)
+```
+
+**Best fit**: SARIMA models capture seasonal pattern!
+
+# Standard Errors for Time Series
+
+## Why Special Standard Errors?
+
+**OLS assumption**: $\text{Cov}(\epsilon_i, \epsilon_j) = 0$ for $i \neq j$
+
+. . .
+
+**Reality with time series**:
+- Autocorrelation: $\text{Cov}(\epsilon_t, \epsilon_{t-k}) \neq 0$
+- Heteroskedasticity: $\text{Var}(\epsilon_t)$ changes over time
+
+. . .
+
+**Consequence**: Standard OLS standard errors are **wrong**!
+
+. . .
+
+**Solutions**:
+- **HC**: Heteroskedasticity-Consistent (White)
+- **HAC**: Heteroskedasticity and Autocorrelation Consistent (Newey-West)
+
+## Types of Robust Standard Errors
+
+**HC variants** (heteroskedasticity only):
+
+- **HC0**: White's original
+- **HC1**: Small sample correction
+- **HC2**: STATA default
+- **HC3**: R `sandwich` package default
+- **HC4, HC5**: Further refinements
+
+. . .
+
+**HAC**: Newey-West
+- Corrects for both heteroskedasticity AND autocorrelation
+- Specify maximum lag for autocorrelation
+
+## Simulated Examples
+
+```{r}
+#| code-fold: true
+set.seed(789)
+n <- 50
+
+# Create different error structures
+het_increasing <- rnorm(n, 0, 1:n)  # Variance increases
+het_decreasing <- rnorm(n, 0, n:1)  # Variance decreases
+het_middle <- rnorm(n, 0, abs(1:n - median(1:n)))  # Variance peaks in middle
+het_bathtub <- rnorm(n, 0, ifelse((1:n - median(1:n)) > 0, n - 1:n, 1:n - 1))
+
+# Create series
+time_idx <- 1:n
+y1 <- 5 + 0.5*time_idx + het_increasing
+y2 <- 5 + 0.5*time_idx + het_decreasing
+y3 <- 5 + 0.5*time_idx + het_middle
+y4 <- 5 + 0.5*time_idx + het_bathtub
+
+# Plot
+par(mfrow = c(2, 2))
+nice_plot(time_idx, y1, type = "b", pch = 20, main = "Increasing Variance")
+nice_plot(time_idx, y2, type = "b", pch = 20, main = "Decreasing Variance")
+nice_plot(time_idx, y3, type = "b", pch = 20, main = "Middle Peak")
+nice_plot(time_idx, y4, type = "b", pch = 20, main = "Bathtub Shape")
+```
+
+## Series 1: Increasing Variance
+
+```{r}
+model1 <- lm(y1 ~ time_idx)
+
+# Compute different SEs
+se_classic <- coef(summary(model1))[2, 2]
+se_hc0 <- coeftest(model1, vcov = vcovHC(model1, "HC0"))[2, 2]
+se_hc1 <- coeftest(model1, vcov = vcovHC(model1, "HC1"))[2, 2]
+se_hc3 <- coeftest(model1, vcov = vcovHC(model1, "HC3"))[2, 2]
+
+results <- data.frame(
+  Method = c("Classic", "HC0", "HC1", "HC3"),
+  `Std Error` = c(se_classic, se_hc0, se_hc1, se_hc3),
+  `vs Classic` = c(1.00, se_hc0/se_classic, se_hc1/se_classic, se_hc3/se_classic)
+)
+
+knitr::kable(results, digits = 4, align = c("l", "r", "r"),
+             col.names = c("Method", "Std. Error", "Ratio to Classic"),
+             caption = "Series 1: Increasing Variance")
+```
+
+Robust SEs are **larger** - classic SEs underestimate uncertainty!
+
+## Series 2: Decreasing Variance
+
+```{r}
+#| echo: false
+model2 <- lm(y2 ~ time_idx)
+
+se_classic2 <- coef(summary(model2))[2, 2]
+se_hc02 <- coeftest(model2, vcov = vcovHC(model2, "HC0"))[2, 2]
+se_hc12 <- coeftest(model2, vcov = vcovHC(model2, "HC1"))[2, 2]
+se_hc32 <- coeftest(model2, vcov = vcovHC(model2, "HC3"))[2, 2]
+
+results2 <- data.frame(
+  Method = c("Classic", "HC0", "HC1", "HC3"),
+  `Std Error` = c(se_classic2, se_hc02, se_hc12, se_hc32),
+  `vs Classic` = c(1.00, se_hc02/se_classic2, se_hc12/se_classic2, se_hc32/se_classic2)
+)
+
+knitr::kable(results2, digits = 4, align = c("l", "r", "r"),
+             col.names = c("Method", "Std. Error", "Ratio to Classic"),
+             caption = "Series 2: Decreasing Variance")
+```
+
+## HAC Standard Errors
+
+**When to use**: When you suspect BOTH heteroskedasticity AND autocorrelation
+
+```{r}
+# Simulate autocorrelated errors
+set.seed(456)
+ar_errors <- arima.sim(list(ar = 0.7), n = 100)
+y_autocorr <- 5 + 0.5*(1:100) + ar_errors
+
+model_autocorr <- lm(y_autocorr ~ I(1:100))
+
+# Compare SEs
+se_classic_ac <- coef(summary(model_autocorr))[2, 2]
+se_hc_ac <- coeftest(model_autocorr, vcov = vcovHC(model_autocorr, "HC3"))[2, 2]
+se_hac_ac <- coeftest(model_autocorr, vcov = vcovHAC(model_autocorr))[2, 2]
+
+results_ac <- data.frame(
+  Method = c("Classic (wrong)", "HC3 (heterosk. only)", "HAC/Newey-West"),
+  `Std Error` = c(se_classic_ac, se_hc_ac, se_hac_ac),
+  `vs Classic` = c(1.00, se_hc_ac/se_classic_ac, se_hac_ac/se_classic_ac)
+)
+
+knitr::kable(results_ac, digits = 4, align = c("l", "r", "r"),
+             col.names = c("Method", "Std. Error", "Ratio"),
+             caption = "Autocorrelated Errors Example")
+```
+
+HAC is **largest** because it accounts for autocorrelation too!
+
+## Practical Recommendations
+
+**When to use each**:
+
+. . .
+
+**Classic SEs**: 
+- Only if you're confident errors are i.i.d.
+- Rarely appropriate for time series
+
+. . .
+
+**HC (White) SEs**:
+- Cross-sectional data
+- Time series without autocorrelation
+- HC3 is generally safest
+
+. . .
+
+**HAC (Newey-West) SEs**:
+- Time series regression
+- Whenever you suspect autocorrelation
+- Default for time series work
+
+# Real Example: Fremont Bridge
+
+## Seattle's Fremont Bridge
+
+::: {.nonincremental}
+![](https://www.myballard.com/wp-content/uploads/Fremont-bridge-076-750x410.jpg)
+:::
+
+Famous bicycle counter tracking daily ridership since 2012
+
+## The Forecasting Challenge
+
+**Scenario**: December 31, 2016
+
+The City of Seattle asks: "How many cyclists will use the bridge in 2017?"
+
+. . .
+
+**Your task**:
+- Use hourly data from 2013-2016
+- Forecast 2017 ridership
+- Account for:
+  - Time of day patterns (rush hours)
+  - Day of week effects (weekdays vs weekends)
+  - Seasonal patterns (summer vs winter)
+  - Weather impacts
+  - Long-term trends
+
+## Loading the Data
+
+```{r}
+#| code-fold: true
+bikes <- load_data_safe("fremont_bridge.csv", generate_bike_data)
+
+if(!inherits(bikes$date, "POSIXct")) {
+  bikes$date <- ymd_hms(bikes$date)
+}
+
+# Filter to training period
+bikes_train <- bikes[bikes$date < ymd_hms("2017-01-01 00:00:00"), ]
+
+cat("Training data:", min(bikes_train$date), "to", max(bikes_train$date), "\n")
+cat("Total observations:", nrow(bikes_train), "\n")
+```
+
+## Visualizing Bicycle Counts
+
+```{r}
+#| code-fold: true
+# Aggregate to daily for cleaner visualization
+daily_bikes <- aggregate(Fremont.Bridge.Total ~ as.Date(date), 
+                        data = bikes_train, 
+                        FUN = sum)
+colnames(daily_bikes) <- c("date", "total")
+
+nice_plot(daily_bikes$date, daily_bikes$total,
+          type = "l", lwd = 1,
+          xlab = "Date",
+          ylab = "Daily Bicycle Count",
+          main = "Fremont Bridge Daily Bicycle Traffic")
+```
+
+Clear seasonal pattern with summer peaks!
+
+## Hourly Pattern
+
+```{r}
+#| code-fold: true
+hourly_avg <- aggregate(Fremont.Bridge.Total ~ hour(date), 
+                       data = bikes_train, 
+                       FUN = mean)
+colnames(hourly_avg) <- c("hour", "avg_count")
+
+nice_plot(hourly_avg$hour, hourly_avg$avg_count,
+          type = "b", pch = 19, lwd = 2,
+          xlab = "Hour of Day",
+          ylab = "Average Bicycle Count",
+          main = "Average Hourly Pattern")
+
+# Mark rush hours
+abline(v = c(8, 17), lty = 2, col = "red")
+text(8, max(hourly_avg$avg_count), "AM Rush", pos = 4, col = "red")
+text(17, max(hourly_avg$avg_count), "PM Rush", pos = 2, col = "red")
+```
+
+## Day of Week Pattern
+
+```{r}
+#| code-fold: true
+dow_avg <- aggregate(Fremont.Bridge.Total ~ wday(date, label = TRUE), 
+                    data = bikes_train, 
+                    FUN = mean)
+colnames(dow_avg) <- c("day", "avg_count")
+
+nice_plot(1:7, dow_avg$avg_count,
+          type = "b", pch = 19, lwd = 2,
+          xlab = "Day of Week",
+          ylab = "Average Bicycle Count",
+          main = "Average by Day of Week",
+          xaxt = "n")
+axis(1, at = 1:7, labels = dow_avg$day)
+
+# Highlight weekend
+rect(5.5, min(dow_avg$avg_count), 7.5, max(dow_avg$avg_count),
+     col = alpha("blue", 0.1), border = NA)
+text(6.5, max(dow_avg$avg_count) * 0.9, "Weekend", col = "blue")
+```
+
+## Your Assignment
+
+Build a forecasting model that:
+
+1. **Captures all patterns**:
+   - Hourly (rush hour effects)
+   - Day of week (weekday vs weekend)
+   - Monthly seasonality
+   - Annual trend
+
+2. **Generates forecasts** for all of 2017
+
+3. **Includes uncertainty** (prediction intervals)
+
+. . .
+
+**Approaches to consider**:
+- SARIMA with external regressors
+- Multiple seasonal periods
+- Seasonal dummy variables
+- Combination of methods
+
+## Hints for Your Model
+
+**Feature engineering**:
+```r
+hour_of_day <- hour(date)
+day_of_week <- wday(date)
+month <- month(date)
+is_weekend <- wday(date) %in% c(1, 7)
+is_rush_hour <- hour(date) %in% c(7:9, 16:18)
+```
+
+. . .
+
+**Model options**:
+- Dummy variables for each pattern
+- SARIMA with multiple seasonal periods
+- Combination: ARIMA + seasonal dummies
+
+. . .
+
+**Remember**: Validate on 2017 data if you have it!
+
+# Summary and Workflow
+
+## Key Takeaways
+
+**Deterministic vs Stochastic Trends**:
+- Test with ADF
+- Try detrending vs differencing
+- Compare model fit
+
+. . .
+
+**Seasonality**:
+- Dummy variables for deterministic patterns
+- SARIMA for stochastic seasonality
+- Can combine both approaches
+
+. . .
+
+**Standard Errors**:
+- Use HC for heteroskedasticity
+- Use HAC for autocorrelation + heteroskedasticity
+- Default to HAC for time series regression
+
+## Seasonal Modeling Workflow
+
+1. **Visualize the data**
+   - Plot the series
+   - Look for seasonal patterns
+   - Check ACF at seasonal lags
+
+2. **Test for seasonality**
+   - Visual inspection
+   - ACF/PACF at seasonal lags
+   - Compare seasonal vs non-seasonal models
+
+3. **Choose approach**
+   - Deterministic → Dummy variables
+   - Stochastic → SARIMA
+   - Both → Combined model
+
+4. **Estimate and compare**
+   - Fit multiple specifications
+   - Use AIC/BIC for selection
+   - Check residuals
+
+5. **Forecast with intervals**
+   - Generate predictions
+   - Include prediction intervals
+   - Validate if possible
+
+## Model Selection Checklist
+
+**For trends**:
+- [ ] Tried both trend and difference specifications?
+- [ ] Tested for unit root?
+- [ ] Compared AIC/BIC?
+
+. . .
+
+**For seasonality**:
+- [ ] Identified seasonal period(s)?
+- [ ] Checked ACF at seasonal lags?
+- [ ] Tried both dummies and SARIMA?
+- [ ] Validated seasonal adjustment?
+
+. . .
+
+**For inference**:
+- [ ] Checked for heteroskedasticity?
+- [ ] Tested for autocorrelation?
+- [ ] Used appropriate standard errors?
+
+## Next Class Topics
+
+- **X Variables**: Including explanatory variables in time series
+- **Cointegration**: Long-run relationships
+- **Coefficient Dynamics**: Time-varying parameters
+- **Vector Autoregressions**: Multiple time series
+
+. . .
+
+**Prepare for next time**:
+- Review multiple regression
+- Practice SARIMA modeling
+- Start thinking about Fremont Bridge project
+
+## Practice Problems
+
+**Problem 1**: Deterministic vs Stochastic
+- Simulate both types of trends
+- Apply ADF test
+- Compare detrending approaches
+
+. . .
+
+**Problem 2**: Seasonal Adjustment
+- Take quarterly GDP data
+- Estimate seasonal effects
+- Create seasonally adjusted series
+
+. . .
+
+**Problem 3**: Fremont Bridge
+- Load the hourly data
+- Build forecasting model
+- Generate 2017 forecasts
+
+## Additional Resources
+
+**Textbooks**:
+- [Forecasting: Principles and Practice](https://otexts.com/fpp3/) - Ch 9 (ARIMA)
+- [Applied Econometric Time Series](https://www.amazon.com/Applied-Econometric-Time-Walter-Enders/dp/1118808568) - Enders
+
+**Online Resources**:
+- [Seasonal ARIMA in R](https://otexts.com/fpp2/seasonal-arima.html)
+- [Robust Standard Errors in R](https://www.econometrics-with-r.org/15-4-hac-standard-errors.html)
+- [sandwich package documentation](https://cran.r-project.org/web/packages/sandwich/sandwich.pdf)
+
+**Data Sources**:
+- [Seattle Open Data](https://data.seattle.gov/)
+- [FRED Economic Data](https://fred.stlouisfed.org/)
+
+## Questions?
+
+**Office hours**: [Your schedule]
+
+**Email**: [Your email]
+
+. . .
+
+**Key reminders**:
+- Deterministic vs stochastic is crucial
+- Seasonality requires special treatment
+- Always use robust standard errors for time series
+- Validate your forecasts!
+
+. . .
+
+Good luck with the Fremont Bridge project!

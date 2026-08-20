@@ -1,0 +1,1442 @@
+---
+title: "ARMA / ARIMA Models"
+subtitle: "Week 6: Time Series Modeling"
+author: "Rex Sitti"
+institute: "Old Dominion University"
+format:
+  revealjs:
+    echo: true
+    code-fold: show
+    code-summary: "Code"
+    code-tools: true
+    code-copy: hover
+    link-external-newwindow: true
+    tbl-cap-location: top
+    fig-cap-location: bottom
+    
+    scrollable: true
+    incremental: true 
+    slide-number: c/t
+    show-slide-number: all
+    menu: false
+    
+    logo: https://www.odu.edu/content/dam/odu/logos/univ/png-72dpi/odu-secondarytm-blu.png
+    footer: "ECON 707/807: Econometrics II"
+  
+self-contained: true
+  
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = 'center')
+knitr::opts_chunk$set(out.width = '90%')
+par(mar = c(4.1, 4.1, 1.1, 4.1))
+set.seed(123)
+
+# Load required packages
+library("lubridate")
+library("forecast")
+
+# Custom plotting function
+nice_plot <- function(...) {
+  plot(..., las = 1, bty = "n", 
+       col.axis = "gray30", col.lab = "gray30")
+}
+
+# Helper function to find data files
+find_data <- function(filename) {
+  possible_paths <- c(
+    file.path("../data", filename),
+    file.path("data", filename),
+    file.path(".", filename)
+  )
+  
+  for(path in possible_paths) {
+    if(file.exists(path)) return(path)
+  }
+  
+  return(NULL)
+}
+
+# Safe data loader with fallback
+load_data_safe <- function(filename, generator_func) {
+  data_path <- find_data(filename)
+  
+  if (!is.null(data_path)) {
+    if (grepl("\\.csv$", filename)) {
+      return(read.csv(data_path))
+    } else if (grepl("\\.RDS$", filename)) {
+      return(readRDS(data_path))
+    }
+  } else {
+    message("Note: Using simulated data for ", filename)
+    return(generator_func())
+  }
+}
+```
+
+```{r data-generators, include=FALSE}
+# Synthetic data generator for liquor sales
+generate_liquor_data <- function() {
+  set.seed(456)
+  dates <- seq(ymd("1992-01-01"), ymd("2019-12-01"), by = "month")
+  n <- length(dates)
+  
+  # Create trend with seasonal component
+  time_idx <- 1:n
+  trend <- 200 + 0.8 * time_idx
+  
+  # Add seasonality (higher sales in December)
+  seasonal <- 50 * sin(2 * pi * time_idx / 12)
+  
+  # Add noise
+  noise <- rnorm(n, 0, 20)
+  
+  # Combine for raw sales
+  sales <- trend + seasonal + noise
+  
+  # Create seasonally adjusted (remove seasonal component)
+  sales_adj <- trend + noise
+  
+  data.frame(
+    date = dates,
+    sales = sales,
+    sales_adj = sales_adj
+  )
+}
+
+# Synthetic data generator for stock returns
+generate_stock_data <- function() {
+  set.seed(789)
+  dates <- seq(ymd("2015-01-01"), ymd("2023-12-31"), by = "day")
+  dates <- dates[!weekdays(dates) %in% c("Saturday", "Sunday")]
+  n <- length(dates)
+  
+  # Simulate stock prices with random walk
+  price_start <- 100
+  returns <- rnorm(n, mean = 0.0005, sd = 0.02)
+  
+  # Add volatility clustering (GARCH-like behavior)
+  volatility <- rep(0.02, n)
+  for(i in 2:n) {
+    volatility[i] <- 0.00001 + 0.05 * returns[i-1]^2 + 0.90 * volatility[i-1]
+    returns[i] <- rnorm(1, mean = 0.0005, sd = volatility[i])
+  }
+  
+  prices <- price_start * cumprod(1 + returns)
+  
+  data.frame(
+    Date = as.character(dates),
+    date = dates,
+    Close = prices,
+    ret = c(NA, diff(prices))
+  )
+}
+```
+
+## Learning Objectives
+
+By the end of this session, you will be able to:
+
+1. **Understand stationarity** and why it matters for time series modeling
+
+2. **Diagnose non-stationarity** using visual inspection, ACF/PACF, and unit root tests
+
+3. **Transform non-stationary series** using differencing and logarithms
+
+4. **Interpret and estimate** AR, MA, and ARMA models
+
+5. **Forecast with ARIMA models** and evaluate forecast accuracy
+
+6. **Understand volatility modeling** basics (ARCH/GARCH)
+
+## Exam 1 Reminder
+
+Topics covered:
+
+- Estimating models (intercept, trend, kink, AR, MA)
+- Visualization and diagnostic plots
+- Interpretation and statistical inference
+
+. . .
+
+**Key skills**: Model specification, estimation, and interpretation
+
+## Today's Roadmap
+
+1. **Stationarity**: What it is and why it matters
+
+2. **Diagnosing stationarity**: Visual tools and tests
+
+3. **Achieving stationarity**: Transformations
+
+4. **AR models**: Autoregressive processes
+
+5. **MA models**: Moving average processes  
+
+6. **ARMA/ARIMA**: Combined models
+
+7. **ARCH/GARCH**: Modeling volatility
+
+# The Stationarity Requirement
+
+## Data Generating Process
+
+$$Y = f(X, \epsilon)$$
+
+To model a **Data Generating Process** (DGP), the data we use must "represent" future data.
+
+. . .
+
+**Key insight**: We need to know that future observations will be similar to past observations
+
+. . .
+
+**This requires**:
+- The DGP must be **independent of time** (stationarity)
+- Mean, variance, and covariance structure stay constant
+- No trends or systematic changes over time
+
+## What is Stationarity?
+
+**Formal definition**: A time series is **stationary** if:
+
+1. **Constant mean**: $E[Y_t] = \mu$ for all $t$
+2. **Constant variance**: $\text{Var}(Y_t) = \sigma^2$ for all $t$  
+3. **Constant covariance**: $\text{Cov}(Y_t, Y_{t-k})$ depends only on $k$, not on $t$
+
+. . .
+
+**Intuition**: The statistical properties don't change over time
+
+. . .
+
+**Non-stationary examples**:
+- Series with trends (mean changes)
+- Series with seasonal patterns (systematic variation)
+- Series with changing variance (heteroskedasticity over time)
+
+## Why Stationarity Matters
+
+**Problem with non-stationary data**:
+
+- Relationships you estimate today may not hold tomorrow
+- Standard regression assumptions violated
+- Forecasts become unreliable
+- Risk of spurious regression
+
+. . .
+
+**Solution**:
+
+- Transform series to achieve stationarity
+- Model the stationary process
+- Transform forecasts back to original scale
+
+# Diagnosing Stationarity
+
+## Three Diagnostic Tools
+
+1. **Visual Inspection**
+   - Plot the series
+   - Look for trends, changing variance, patterns
+
+2. **ACF/PACF Analysis**
+   - Autocorrelation Function
+   - Partial Autocorrelation Function
+
+3. **Statistical Tests**
+   - Augmented Dickey-Fuller (ADF) test
+   - KPSS test
+
+## Visual Inspection {background-image="https://otexts.com/fpp3/fpp_files/figure-html/stationary-1.png" background-size="contain"}
+
+## Visual Inspection: What to Look For
+
+**Stationary series**:
+- Fluctuates around a constant mean
+- Roughly constant variance over time
+- No obvious trends or patterns
+
+. . .
+
+**Non-stationary series**:
+- Trending upward or downward
+- Variance changes over time
+- Seasonal patterns
+- "Wandering" behavior
+
+## ACF and PACF: The Basics
+
+**Autocorrelation Function (ACF)**:
+$$\rho_k = \frac{\text{Cov}(Y_t, Y_{t-k})}{\text{Var}(Y_t)}$$
+
+Correlation between $Y_t$ and $Y_{t-k}$ at lag $k$
+
+. . .
+
+**Partial Autocorrelation Function (PACF)**:
+
+Correlation between $Y_t$ and $Y_{t-k}$ **after controlling** for $Y_{t-1}, \ldots, Y_{t-k+1}$
+
+. . .
+
+**Key for diagnosis**:
+- **Slow decay** in ACF → Non-stationary
+- **Seasonal patterns** in ACF → Non-stationary
+- **Sharp cutoffs** in ACF/PACF → Helps identify model order
+
+## Unit Root Test: Augmented Dickey-Fuller
+
+Consider the model:
+$$Y_{t} = \beta Y_{t-1} + e_t$$
+
+. . .
+
+Subtract $Y_{t-1}$ from both sides:
+$$Y_{t} - Y_{t-1} = \beta Y_{t-1} - Y_{t-1} + e_t$$
+
+. . .
+
+Simplify:
+$$\Delta Y_{t} = (\beta - 1)Y_{t-1} + e_t$$
+
+. . .
+
+**Test**: Is $(\beta - 1)$ significantly different from $0$?
+
+- If $(\beta - 1) \neq 0$ → $\beta \neq 1$ → **No unit root** (stationary)
+- If $(\beta - 1) = 0$ → $\beta = 1$ → **Unit root** (non-stationary)
+
+## ADF Test Interpretation
+
+**Null hypothesis**: Series has a unit root (non-stationary)
+
+**Alternative**: Series is stationary
+
+. . .
+
+**Decision rule**:
+- **Small p-value** (< 0.05) → Reject null → Series is stationary ✓
+- **Large p-value** (> 0.05) → Fail to reject → Series is non-stationary ✗
+
+. . .
+
+**Critical note**: This is a rare case where we **want** to reject the null!
+
+# Achieving Stationarity
+
+## Transformation Strategies
+
+When your series is non-stationary:
+
+1. **Differencing**: Take $\Delta Y_t = Y_t - Y_{t-1}$
+   - Removes trends
+   - Most series need only 1 difference
+   - Some need 2 or more
+
+2. **Logarithm**: Take $\log(Y_t)$
+   - Stabilizes variance
+   - Converts to percentage changes when differenced
+
+3. **Both**: $\Delta \log(Y_t)$
+   - Growth rate in percentage terms
+
+## The Training-Testing Framework
+
+```{r echo = FALSE}
+nice_plot(0:10, rep(0, 11), type = "n",
+          xaxt = "n", yaxt = "n",
+          xlab = "", ylab = "", ylim = c(-.3, 1))
+segments(x0 = 0, x1 = 7, y0 = 0, lwd = 3, col = "dodgerblue")
+arrows(x0 = 7, x1 = 10, y0 = 0, length = .2, lwd = 3, col = "tomato")
+points(7, 0, pch = "|", cex = 2)
+text("Training Data", x = 3.5, y = -.2, cex = 1.5, font = 2)
+text("Testing/Forecast", x = 8.5, y = -.2, cex = 1.5, font = 2)
+axis(1, c(0, 7, 10), c("t = 0", "t = T", "t = T + h"), 
+     lwd = 0, lwd.ticks = 2, cex.axis = 1.5)
+
+# Add simulated stationary data
+lines((1:(49*2))/(7*2), rnorm(49*2, .6, .15), lwd = 1.5)
+lines(((49*2):((70*2) - 1))/(7*2), rnorm(21*2, .6, .15), 
+      col = "mediumseagreen", lwd = 1.5)
+
+legend("topleft", 
+       legend = c("Historical", "Future"),
+       col = c("black", "mediumseagreen"),
+       lty = 1, lwd = 1.5, bty = "n")
+```
+
+**Goal**: Statistical properties remain constant across training and testing periods
+
+# Example 1: Air Passengers
+
+## Classic Example: Air Passenger Data
+
+```{r}
+#| code-fold: true
+data("AirPassengers")
+air <- AirPassengers
+
+nice_plot(air, ylab = "Number of Passengers (1000s)",
+          xlab = "Year", main = "Monthly Airline Passengers 1949-1960")
+```
+
+**Observations**:
+- Clear upward trend
+- Increasing variance over time
+- Seasonal pattern
+- Definitely non-stationary!
+
+## ACF: Clear Non-Stationarity
+
+```{r}
+#| code-fold: true
+#| warning: false
+acf(air, lag.max = 36, main = "ACF: Air Passengers (Levels)")
+```
+
+**What we see**:
+- Very slow decay (stays high for many lags)
+- Seasonal pattern (peaks every 12 months)
+- Classic sign of non-stationarity
+
+## Statistical Test Confirms
+
+```{r}
+#| code-fold: true
+#| warning: false
+adf_result <- tseries::adf.test(air)
+adf_result
+```
+
+. . .
+
+**Interpretation**:
+- p-value = `r round(adf_result$p.value, 3)` 
+- **Cannot reject** the null hypothesis of unit root
+- Series is **non-stationary**
+
+## Transformation 1: Take Logs
+
+```{r}
+#| code-fold: true
+nice_plot(log(air), ylab = "log(Passengers)",
+          xlab = "Year", 
+          main = "Log-Transformed Air Passengers")
+```
+
+**Effect**: Variance is now more stable, but trend and seasonality remain
+
+## Transformation 2: Difference the Logs
+
+```{r}
+#| code-fold: true
+nice_plot(diff(log(air)), 
+          ylab = expression(paste(Delta, " log(Passengers)")),
+          xlab = "Year",
+          main = "First Difference of Log Air Passengers")
+abline(h = 0, lty = 2, col = "red")
+```
+
+**Interpretation**: This is the **monthly growth rate** in passengers
+
+## ACF After Differencing
+
+```{r}
+#| code-fold: true
+#| warning: false
+acf(diff(log(air)), lag.max = 36, 
+    main = "ACF: Differenced Log Air Passengers")
+```
+
+**What we see**:
+- Much faster decay
+- Still some seasonal pattern (peaks at 12, 24)
+- Much closer to stationarity!
+
+## Statistical Test After Transformation
+
+```{r}
+#| code-fold: true
+#| warning: false
+adf_diff <- tseries::adf.test(diff(log(air)))
+adf_diff
+```
+
+. . .
+
+**Interpretation**:
+- p-value = `r round(adf_diff$p.value, 3)` < 0.01
+- **Reject** the null hypothesis
+- Differenced series **is stationary** ✓
+
+## Remaining Challenge: Seasonality
+
+The Air Passengers series still has seasonal patterns after differencing.
+
+. . .
+
+**Two approaches**:
+
+1. **Seasonal differencing**: Take difference at lag 12
+   - $\Delta_{12} Y_t = Y_t - Y_{t-12}$
+
+2. **Seasonal ARIMA**: Explicitly model seasonal components
+   - SARIMA(p,d,q)(P,D,Q)$_s$
+   - We'll cover this in future classes
+
+. . .
+
+For now, let's look at a cleaner example...
+
+# Example 2: Liquor Sales
+
+## Monthly Liquor Sales Data
+
+```{r}
+#| code-fold: true
+liquor <- load_data_safe("liquor.csv", generate_liquor_data)
+if(!inherits(liquor$date, "Date")) {
+  liquor$date <- mdy(liquor$date)
+}
+liquor <- liquor[liquor$date < ymd("2020-01-01"),]
+
+nice_plot(liquor$date, liquor$sales, type = "l",
+          xlab = "Month", 
+          ylab = "Sales (Millions of Dollars)",
+          main = "Monthly Liquor Sales")
+```
+
+**Observations**: Upward trend with seasonal variation
+
+## Raw Sales: First Difference
+
+```{r}
+#| code-fold: true
+nice_plot(liquor$date[2:nrow(liquor)],
+          diff(liquor$sales), type = "l",
+          xlab = "Month", 
+          ylab = "Month-over-Month Change",
+          main = "First Difference of Raw Sales")
+abline(h = 0, lty = 2, col = "red")
+```
+
+Still has strong seasonal pattern in the differences
+
+## Seasonally Adjusted Sales
+
+```{r}
+#| code-fold: true
+nice_plot(liquor$date, liquor$sales_adj, type = "l",
+          xlab = "Month", 
+          ylab = "Sales (Millions, Seasonally Adjusted)",
+          main = "Seasonally Adjusted Liquor Sales")
+```
+
+FRED provides seasonally adjusted series - trend is clearer
+
+## Adjusted Sales: First Difference
+
+```{r}
+#| code-fold: true
+nice_plot(liquor$date[2:nrow(liquor)],
+          diff(liquor$sales_adj), type = "l",
+          xlab = "Month", 
+          ylab = "Month-over-Month Change",
+          main = "First Difference of Adjusted Sales")
+abline(h = 0, lty = 2, col = "red")
+```
+
+Much cleaner! Fluctuates around constant mean
+
+## Log Transform for Percentage Changes
+
+```{r}
+#| code-fold: true
+nice_plot(liquor$date, asinh(liquor$sales_adj), type = "l",
+          xlab = "Month", 
+          ylab = "asinh(Sales)",
+          main = "Inverse Hyperbolic Sine Transformation")
+```
+
+::: aside
+**Note**: `asinh()` is similar to `log()` but handles zeros and negative values better
+:::
+
+## Growth Rate (Differenced Log)
+
+```{r}
+#| code-fold: true
+nice_plot(liquor$date[2:nrow(liquor)],
+          diff(asinh(liquor$sales_adj)), type = "l",
+          xlab = "Month", 
+          ylab = "Growth Rate",
+          main = "Monthly Growth Rate of Adjusted Sales")
+abline(h = 0, lty = 2, col = "red")
+```
+
+This represents the **percentage growth rate** each month
+
+## ACF and PACF of Growth Rates
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(diff(asinh(liquor$sales_adj)), xlim = c(1, 25), 
+    main = "ACF: Growth Rates")
+pacf(diff(asinh(liquor$sales_adj)), xlim = c(1, 25), 
+     main = "PACF: Growth Rates")
+```
+
+**Key observations**: 
+- ACF shows significant lag 1
+- PACF cuts off after lag 1
+- Suggests AR(1) process
+
+# Interpreting Logarithms
+
+## Log Transformations in Regression
+
+Understanding how logs affect interpretation:
+
+. . .
+
+**Level-Level**: $Y = \alpha + \beta X + e$
+- 1 unit ↑ in $X$ → $\beta$ unit ↑ in $Y$
+
+. . .
+
+**Log-Level**: $Y = \alpha + \beta \log(X) + e$
+- 1% ↑ in $X$ → $\beta/100$ unit ↑ in $Y$
+
+. . .
+
+**Level-Log**: $\log(Y) = \alpha + \beta X + e$
+- 1 unit ↑ in $X$ → $100 \times \beta$% ↑ in $Y$
+
+. . .
+
+**Log-Log**: $\log(Y) = \alpha + \beta \log(X) + e$
+- 1% ↑ in $X$ → $\beta$% ↑ in $Y$ (elasticity)
+
+::: aside
+[Resource for Interpreting Logs](https://sites.google.com/site/curtiskephart/ta/econ113/interpreting-beta)
+:::
+
+## Growth Rates and Differences
+
+When we take $\Delta \log(Y_t)$:
+
+$$\Delta \log(Y_t) = \log(Y_t) - \log(Y_{t-1}) \approx \frac{Y_t - Y_{t-1}}{Y_{t-1}}$$
+
+. . .
+
+This is the **growth rate** expressed as a proportion
+
+. . .
+
+**Example**: If $\Delta \log(Y_t) = 0.02$:
+- Approximately 2% growth from period $t-1$ to $t$
+- More precisely: $Y_t = Y_{t-1} \times e^{0.02} \approx Y_{t-1} \times 1.0202$
+
+# Autoregressive (AR) Models
+
+## AR Model Framework
+
+An **Autoregressive model of order p** (AR(p)):
+
+$$Y_t = \alpha + \beta_1 Y_{t-1} + \beta_2 Y_{t-2} + \ldots + \beta_p Y_{t-p} + \epsilon_t$$
+
+. . .
+
+**Key idea**: Today's value depends on past values
+
+. . .
+
+**Example: AR(1)**:
+$$Y_t = \alpha + \beta_1 Y_{t-1} + \epsilon_t$$
+
+. . .
+
+**Interpretation**: If $Y_{t-1}$ increases by 1 unit, expect $Y_t$ to increase by $\beta_1$ units (on average)
+
+## AR Models with Growth Rates
+
+For liquor sales, we'll model:
+$$\Delta \log(Y_{t}) = \alpha + \beta \Delta \log(Y_{t-1}) + \epsilon_t$$
+
+. . .
+
+**Interpretation**: 
+
+If sales grew by 1% last month ($\Delta \log(Y_{t-1}) = 0.01$),  
+we expect growth this month of $\alpha + \beta \times 0.01$
+
+. . .
+
+**Example**: If $\beta = 0.3$:
+- 1% growth last month → expect additional 0.3% growth this month
+- Total expected growth: $\alpha + 0.003$
+
+## Estimating a Trend Model First
+
+Let's first fit a simple trend to understand growth:
+
+```{r}
+liquor$t <- interval(min(liquor$date), liquor$date) %/% months(1)
+reg_trend <- lm(log(sales_adj) ~ t, data = liquor)
+
+# Display key coefficients
+coef_summary <- summary(reg_trend)$coefficients
+results_df <- data.frame(
+  Coefficient = c("Intercept", "Time (months)"),
+  Estimate = sprintf("%.6f", coef_summary[, 1]),
+  `Std Error` = sprintf("%.6f", coef_summary[, 2]),
+  `t-value` = sprintf("%.2f", coef_summary[, 3]),
+  check.names = FALSE
+)
+
+knitr::kable(results_df, align = c("l", "r", "r", "r"))
+```
+
+## Interpreting the Trend
+
+```{r}
+beta_t <- coef(reg_trend)[2]
+```
+
+The coefficient on `t` is $`r round(beta_t, 6)`$
+
+. . .
+
+**This means**:
+- Monthly growth rate ≈ $`r round(beta_t * 100, 3)`$%
+- Annual growth rate ≈ $`r round(beta_t * 12 * 100, 2)`$%
+
+. . .
+
+Let's verify this with the raw data:
+
+```{r}
+# Calculate month-over-month growth rates
+growth_rates <- diff(liquor$sales_adj) / liquor$sales_adj[-nrow(liquor)]
+avg_growth <- mean(growth_rates, na.rm = TRUE)
+
+cat("Trend coefficient:", round(beta_t, 6), "\n")
+cat("Raw average growth:", round(avg_growth, 6), "\n")
+```
+
+Close match!
+
+## Visualizing the Trend
+
+```{r}
+#| code-fold: true
+nice_plot(liquor$date, log(liquor$sales_adj), type = "l",
+          ylab = "log(Sales)", xlab = "Month",
+          main = "Trend Model Fit")
+lines(liquor$date, reg_trend$fitted.values, col = "tomato", lwd = 2)
+legend("topleft", 
+       legend = c("Actual", "Trend"),
+       col = c("black", "tomato"),
+       lty = 1, lwd = c(1, 2), bty = "n")
+```
+
+## Identifying AR Structure: ACF/PACF
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(diff(asinh(liquor$sales_adj)), xlim = c(1, 25), 
+    main = "ACF: Growth Rates")
+pacf(diff(asinh(liquor$sales_adj)), xlim = c(1, 25), 
+     main = "PACF: Growth Rates")
+```
+
+**What we see**:
+- ACF: Significant lag 1, decays
+- PACF: Significant lag 1, cuts off sharply
+- **Suggests AR(1) model**
+
+## Estimating AR Models
+
+```{r}
+#| warning: false
+# Estimate AR(1)
+ar1_model <- arima(diff(asinh(liquor$sales_adj)), 
+                   order = c(1, 0, 0), 
+                   include.mean = TRUE)
+
+# Estimate AR(12) to capture any annual patterns
+ar12_model <- arima(diff(asinh(liquor$sales_adj)), 
+                    order = c(12, 0, 0), 
+                    include.mean = TRUE)
+```
+
+## AR Model Results
+
+```{r}
+# Create comparison table
+coef1 <- coef(ar1_model)
+se1 <- sqrt(diag(vcov(ar1_model)))
+coef12 <- coef(ar12_model)
+se12 <- sqrt(diag(vcov(ar12_model)))
+
+# Show only first few coefficients for AR(12)
+results_df <- data.frame(
+  Parameter = c("Intercept", "", "AR(1)", "", "AR(2)", "AR(3)", "AIC"),
+  `AR(1) Model` = c(
+    sprintf("%.5f", coef1[2]),
+    sprintf("(%.5f)", se1[2]),
+    sprintf("%.3f***", coef1[1]),
+    sprintf("(%.3f)", se1[1]),
+    "", "",
+    sprintf("%.1f", AIC(ar1_model))
+  ),
+  `AR(12) Model` = c(
+    sprintf("%.5f", coef12[13]),
+    sprintf("(%.5f)", se12[13]),
+    sprintf("%.3f***", coef12[1]),
+    sprintf("(%.3f)", se12[1]),
+    sprintf("%.3f", coef12[2]),
+    sprintf("%.3f", coef12[3]),
+    sprintf("%.1f", AIC(ar12_model))
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(results_df, align = c("l", "c", "c"),
+             caption = "Autoregressive Model Comparison")
+```
+
+## Interpreting AR(1) Coefficient
+
+```{r}
+ar1_coef <- coef(ar1_model)[1]
+```
+
+The AR(1) coefficient is $`r round(ar1_coef, 3)`$
+
+. . .
+
+**Interpretation**:
+
+If sales grew by 1% last month, we expect growth this month to be:
+$$\text{Growth}_t = `r round(coef(ar1_model)[2], 5)` + `r round(ar1_coef, 3)` \times 0.01$$
+
+. . .
+
+This shows **positive autocorrelation**: Growth tends to persist
+
+. . .
+
+**Model selection**: AR(12) has lower AIC, suggesting it fits better
+
+## Forecasting with AR Models
+
+```{r}
+#| code-fold: true
+# Create forecast periods
+liquor2 <- data.frame(
+  date = max(liquor$date) + months(1:24),
+  sales = NA, 
+  sales_adj = NA,
+  t = max(liquor$t) + 1:24
+)
+liquor_combined <- rbind(liquor, liquor2)
+
+# Generate forecasts
+p1 <- predict(ar1_model, n.ahead = 24)
+p12 <- predict(ar12_model, n.ahead = 24)
+
+# Transform forecasts back to levels
+liquor_combined$forecast_ar1 <- liquor_combined$sales_adj
+liquor_combined$forecast_ar12 <- liquor_combined$sales_adj
+liquor_combined$forecast_ar12_upper <- NA
+liquor_combined$forecast_ar12_lower <- NA
+
+na_idx <- which(is.na(liquor_combined$sales_adj))
+for(i in 1:24){
+  idx <- na_idx[i]
+  liquor_combined$forecast_ar1[idx] <- 
+    liquor_combined$forecast_ar1[idx - 1] * (1 + sinh(p1$pred[i]))
+  
+  liquor_combined$forecast_ar12[idx] <- 
+    liquor_combined$forecast_ar12[idx - 1] * (1 + sinh(p12$pred[i]))
+  
+  liquor_combined$forecast_ar12_upper[idx] <- 
+    liquor_combined$forecast_ar12[idx - 1] * 
+    (1 + sinh(p12$pred[i]) + 1.645 * sinh(p12$se[i]))
+  
+  liquor_combined$forecast_ar12_lower[idx] <- 
+    liquor_combined$forecast_ar12[idx - 1] * 
+    (1 + sinh(p12$pred[i]) - 1.645 * sinh(p12$se[i]))
+}
+```
+
+## Forecast Comparison
+
+```{r}
+#| code-fold: true
+plot_idx <- liquor_combined$date >= ymd("2015-01-01")
+
+nice_plot(liquor_combined$date[plot_idx], 
+          liquor_combined$forecast_ar1[plot_idx], 
+          type = "l", 
+          col = scales::alpha("tomato", .6), 
+          lwd = 3,
+          xlab = "Date",
+          ylab = "Sales (Millions)",
+          main = "AR Model Forecasts",
+          ylim = range(liquor_combined$sales_adj[plot_idx],
+                       liquor_combined$forecast_ar12_upper[plot_idx],
+                       liquor_combined$forecast_ar12_lower[plot_idx],
+                       na.rm = TRUE))
+
+lines(liquor_combined$date[plot_idx], 
+      liquor_combined$forecast_ar12[plot_idx], 
+      col = scales::alpha("dodgerblue", .6), lwd = 3)
+
+lines(liquor_combined$date[plot_idx], 
+      liquor_combined$sales_adj[plot_idx], lwd = 2)
+
+lines(liquor_combined$date[plot_idx], 
+      liquor_combined$forecast_ar12_lower[plot_idx], 
+      col = "dodgerblue", lty = 2)
+
+lines(liquor_combined$date[plot_idx], 
+      liquor_combined$forecast_ar12_upper[plot_idx], 
+      col = "dodgerblue", lty = 2)
+
+abline(v = max(liquor$date), lty = 2, col = "gray50")
+
+legend("topleft",
+       legend = c("Actual", "AR(1) Forecast", "AR(12) Forecast", "90% PI"),
+       col = c("black", "tomato", "dodgerblue", "dodgerblue"),
+       lty = c(1, 1, 1, 2),
+       lwd = c(2, 3, 3, 1),
+       bty = "n")
+```
+
+# Moving Average (MA) Models
+
+## MA Model Intuition
+
+**Example**: Car manufacturer inventory
+
+. . .
+
+Each month, you manufacture $m$ vehicles with random variation $e_t$:
+$$\text{Vehicles}_t = m + e_t$$
+
+. . .
+
+**Key**: Fraction $\theta$ of vehicles don't sell and carry over
+
+. . .
+
+Your inventory becomes:
+$$\begin{align}
+\text{Inventory}_t &= \text{Vehicles}_t + \theta \times \text{Vehicles}_{t-1} \\
+&= (m + e_t) + \theta(m + e_{t-1}) \\
+&= \mu + e_t + \theta e_{t-1}
+\end{align}$$
+
+. . .
+
+This is an **MA(1) model**: Today depends on today's shock AND yesterday's shock
+
+## MA(q) Model Definition
+
+**Moving Average model of order q** (MA(q)):
+
+$$Y_t = \mu + e_t + \theta_1 e_{t-1} + \theta_2 e_{t-2} + \ldots + \theta_q e_{t-q}$$
+
+. . .
+
+where $e_t \sim \text{N}(0, \sigma^2)$ are white noise errors
+
+. . .
+
+**Key difference from AR**:
+- AR: Current value depends on past **values**
+- MA: Current value depends on past **errors**
+
+## MA vs AR: When to Use Which?
+
+**Use ACF/PACF to decide**:
+
+. . .
+
+**AR(p) suggested when**:
+- ACF decays gradually
+- PACF cuts off after lag $p$
+
+. . .
+
+**MA(q) suggested when**:
+- ACF cuts off after lag $q$
+- PACF decays gradually
+
+. . .
+
+**Our liquor data**: ACF cuts off, PACF decays → Try AR  
+(Which we already did!)
+
+## Estimating MA Models Anyway
+
+For comparison, let's fit MA models to liquor sales:
+
+```{r}
+#| warning: false
+# Estimate MA(1)
+ma1_model <- arima(diff(asinh(liquor$sales_adj)), 
+                   order = c(0, 0, 1), 
+                   include.mean = TRUE)
+
+# Estimate MA(12)
+ma12_model <- arima(diff(asinh(liquor$sales_adj)), 
+                    order = c(0, 0, 12), 
+                    include.mean = TRUE)
+```
+
+## MA Model Results
+
+```{r}
+# Create comparison table
+coef_ma1 <- coef(ma1_model)
+se_ma1 <- sqrt(diag(vcov(ma1_model)))
+coef_ma12 <- coef(ma12_model)
+se_ma12 <- sqrt(diag(vcov(ma12_model)))
+
+results_df <- data.frame(
+  Parameter = c("Intercept", "", "MA(1)", "", "MA(2)", "MA(3)", "AIC"),
+  `MA(1) Model` = c(
+    sprintf("%.5f", coef_ma1[2]),
+    sprintf("(%.5f)", se_ma1[2]),
+    sprintf("%.3f***", coef_ma1[1]),
+    sprintf("(%.3f)", se_ma1[1]),
+    "", "",
+    sprintf("%.1f", AIC(ma1_model))
+  ),
+  `MA(12) Model` = c(
+    sprintf("%.5f", coef_ma12[13]),
+    sprintf("(%.5f)", se_ma12[13]),
+    sprintf("%.3f***", coef_ma12[1]),
+    sprintf("(%.3f)", se_ma12[1]),
+    sprintf("%.3f", coef_ma12[2]),
+    sprintf("%.3f", coef_ma12[3]),
+    sprintf("%.1f", AIC(ma12_model))
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(results_df, align = c("l", "c", "c"),
+             caption = "Moving Average Model Comparison")
+```
+
+**Note**: MA models have higher AIC than AR models for this data
+
+## MA Model Forecasts
+
+```{r}
+#| code-fold: true
+# Generate MA forecasts
+pma1 <- predict(ma1_model, n.ahead = 24)
+pma12 <- predict(ma12_model, n.ahead = 24)
+
+# Transform back to levels
+liquor_combined$forecast_ma1 <- liquor_combined$sales_adj
+liquor_combined$forecast_ma12 <- liquor_combined$sales_adj
+
+for(i in 1:24){
+  idx <- na_idx[i]
+  liquor_combined$forecast_ma1[idx] <- 
+    liquor_combined$forecast_ma1[idx - 1] * (1 + sinh(pma1$pred[i]))
+  
+  liquor_combined$forecast_ma12[idx] <- 
+    liquor_combined$forecast_ma12[idx - 1] * (1 + sinh(pma12$pred[i]))
+}
+
+# Plot
+nice_plot(liquor_combined$date[plot_idx], 
+          liquor_combined$forecast_ma1[plot_idx], 
+          type = "l", 
+          col = scales::alpha("tomato", .6), 
+          lwd = 3,
+          xlab = "Date",
+          ylab = "Sales (Millions)",
+          main = "MA Model Forecasts")
+
+lines(liquor_combined$date[plot_idx], 
+      liquor_combined$forecast_ma12[plot_idx], 
+      col = scales::alpha("dodgerblue", .6), lwd = 3)
+
+lines(liquor_combined$date[plot_idx], 
+      liquor_combined$sales_adj[plot_idx], lwd = 2)
+
+abline(v = max(liquor$date), lty = 2, col = "gray50")
+
+legend("topleft",
+       legend = c("Actual", "MA(1) Forecast", "MA(12) Forecast"),
+       col = c("black", "tomato", "dodgerblue"),
+       lty = 1,
+       lwd = c(2, 3, 3),
+       bty = "n")
+```
+
+# ARMA and ARIMA Models
+
+## Combining AR and MA: ARMA
+
+**ARMA(p,q)** combines both processes:
+
+$$Y_t = \alpha + \sum_{i=1}^{p} \beta_i Y_{t-i} + e_t + \sum_{j=1}^{q} \theta_j e_{t-j}$$
+
+. . .
+
+**Example ARMA(1,1)**:
+$$Y_t = \alpha + \beta_1 Y_{t-1} + e_t + \theta_1 e_{t-1}$$
+
+. . .
+
+**Why use ARMA?**
+- More flexible than pure AR or MA
+- Can capture complex autocorrelation patterns
+- Often achieves better fit with fewer parameters
+
+## Adding Integration: ARIMA
+
+**ARIMA(p,d,q)** = ARMA with differencing:
+
+- **p**: Order of autoregression
+- **d**: Degree of differencing
+- **q**: Order of moving average
+
+. . .
+
+**Process**:
+1. Difference the series $d$ times to achieve stationarity
+2. Fit ARMA(p,q) to the differenced series
+
+. . .
+
+**Example ARIMA(1,1,1)**:
+$$\Delta Y_t = \alpha + \beta_1 \Delta Y_{t-1} + e_t + \theta_1 e_{t-1}$$
+
+## Identifying ARIMA Orders {.smaller}
+
+<div align="center">
+<iframe width="1120" height="630" src="https://www.youtube.com/embed/ZE_WGBe0_VU?start=183" title="ACF/PACF Interpretation" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen data-external="1"></iframe>
+</div>
+
+## The `forecast` Package
+
+Two main functions for ARIMA:
+
+. . .
+
+**`Arima()`**: Manual specification
+```r
+Arima(y, order = c(p, d, q))
+```
+
+. . .
+
+**`auto.arima()`**: Automatic selection
+- Tests multiple combinations
+- Selects based on AIC/BIC
+- Good starting point for analysis
+
+::: aside
+[Excellent resource on ARIMA in R](https://otexts.com/fpp2/arima-r.html)
+:::
+
+## Using `auto.arima()` on Liquor Sales
+
+```{r}
+#| code-fold: true
+# Use auto.arima to find best model
+best_model <- auto.arima(asinh(liquor$sales_adj), 
+                         seasonal = FALSE,
+                         trace = FALSE)
+best_model
+```
+
+. . .
+
+**Selected model**: ARIMA(`r best_model$arma[1]`,`r best_model$arma[6]`,`r best_model$arma[2]`)
+
+**Interpretation**: 
+- `r best_model$arma[6]` difference(s) for stationarity
+- AR(`r best_model$arma[1]`) component
+- MA(`r best_model$arma[2]`) component
+
+## Forecasting with ARIMA
+
+```{r}
+#| code-fold: true
+# Generate 24-month forecast
+forecast_arima <- forecast(best_model, h = 24)
+
+# Plot
+plot_start <- ymd("2015-01-01")
+plot_data <- liquor$date >= plot_start
+
+nice_plot(liquor$date, liquor$sales_adj, 
+          type = "l", lwd = 2,
+          xlim = ymd(c("2015-01-01", "2022-12-01")),
+          ylim = range(sinh(forecast_arima$upper[,2]), 
+                       sinh(forecast_arima$lower[,2]), 
+                       liquor$sales_adj[plot_data], 
+                       na.rm = TRUE),
+          xlab = "Date",
+          ylab = "Sales (Millions)",
+          main = "ARIMA Forecast")
+
+# Add forecast
+forecast_dates <- max(liquor$date) + months(1:24)
+lines(forecast_dates, sinh(forecast_arima$mean),
+      col = "tomato", lwd = 2)
+lines(forecast_dates, sinh(forecast_arima$upper[,2]),
+      col = "tomato", lwd = 2, lty = 2)
+lines(forecast_dates, sinh(forecast_arima$lower[,2]),
+      col = "tomato", lwd = 2, lty = 2)
+
+abline(v = max(liquor$date), lty = 2, col = "gray50")
+
+legend("topleft",
+       legend = c("Actual", "Forecast", "90% Prediction Interval"),
+       col = c("black", "tomato", "tomato"),
+       lty = c(1, 1, 2),
+       lwd = c(2, 2, 2),
+       bty = "n")
+```
+
+## Model Comparison Summary
+
+Let's compare all our models:
+
+```{r}
+# Compare AICs
+model_comparison <- data.frame(
+  Model = c("AR(1)", "AR(12)", "MA(1)", "MA(12)", "Auto ARIMA"),
+  Specification = c("(1,0,0)", "(12,0,0)", "(0,0,1)", "(0,0,12)",
+                    paste0("(", best_model$arma[1], ",", 
+                           best_model$arma[6], ",", 
+                           best_model$arma[2], ")")),
+  AIC = c(AIC(ar1_model), AIC(ar12_model), 
+          AIC(ma1_model), AIC(ma12_model), 
+          AIC(best_model)),
+  check.names = FALSE
+)
+
+model_comparison$AIC <- round(model_comparison$AIC, 1)
+
+knitr::kable(model_comparison, align = c("l", "c", "r"),
+             caption = "Model Comparison (Lower AIC is better)")
+```
+
+**Winner**: `r model_comparison$Model[which.min(model_comparison$AIC)]`
+
+# ARCH and GARCH Models
+
+## Modeling Volatility
+
+So far we've modeled the **level** or **mean** of a series
+
+. . .
+
+**New question**: What if we want to model **volatility**?
+
+. . .
+
+**Applications**:
+- Stock returns are hard to predict (Efficient Market Hypothesis)
+- But volatility is **predictable** and clusters
+- Risk management needs volatility forecasts
+- Option pricing requires volatility estimates
+
+## Example: Stock Returns
+
+```{r}
+#| code-fold: true
+goog <- load_data_safe("GOOG.csv", generate_stock_data)
+if(!inherits(goog$date, "Date")) {
+  goog$date <- ymd(goog$Date)
+}
+goog <- goog[order(goog$date),]
+
+nice_plot(goog$date, goog$ret, type = "l",
+          xlab = "Date",
+          ylab = "Daily Returns ($)",
+          main = "Google Stock Daily Returns")
+abline(h = 0, lty = 2, col = "red")
+```
+
+**Observations**: Returns cluster in high/low volatility periods
+
+## ACF of Returns
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+returns_clean <- goog$ret[!is.na(goog$ret)]
+acf(returns_clean, main = "ACF: Returns")
+pacf(returns_clean, main = "PACF: Returns")
+```
+
+Returns show **little autocorrelation** (hard to predict!)
+
+## ACF of Squared Returns
+
+```{r}
+#| code-fold: true
+par(mfrow = c(1, 2))
+acf(returns_clean^2, main = "ACF: Squared Returns")
+pacf(returns_clean^2, main = "PACF: Squared Returns")
+```
+
+**Squared returns** show strong autocorrelation → Volatility is predictable!
+
+## ARCH and GARCH Intuition
+
+**ARCH(q)**: AutoRegressive Conditional Heteroskedasticity
+
+$$\sigma_t^2 = \alpha_0 + \alpha_1 \epsilon_{t-1}^2 + \ldots + \alpha_q \epsilon_{t-q}^2$$
+
+Current volatility depends on past squared shocks
+
+. . .
+
+**GARCH(p,q)**: Generalized ARCH
+
+$$\sigma_t^2 = \alpha_0 + \sum_{i=1}^{q}\alpha_i \epsilon_{t-i}^2 + \sum_{j=1}^{p}\beta_j \sigma_{t-j}^2$$
+
+Current volatility depends on:
+- Past squared shocks (ARCH component)
+- Past volatility (GARCH component)
+
+## GARCH Resources
+
+Estimating GARCH models requires specialized packages:
+
+**Recommended package**: `rugarch`
+
+. . .
+
+**Excellent tutorials**:
+- [`rugarch` package vignette](https://cran.r-project.org/web/packages/rugarch/vignettes/Introduction_to_the_rugarch_package.pdf)
+- [ARCH/GARCH in R (RPubs)](https://rpubs.com/cyobero/arch)
+- [GARCH Modeling Guide](https://www.r-bloggers.com/2012/07/a-practical-introduction-to-garch-modeling/)
+- [Time-Varying Volatility (Bookdown)](https://bookdown.org/ccolonescu/RPoE4/time-varying-volatility-and-arch-models.html)
+
+. . .
+
+**Beyond this course**: GARCH models are widely used in finance for:
+- Risk management (VaR calculations)
+- Option pricing
+- Portfolio optimization
+
+# Summary and Next Steps
+
+## Key Takeaways
+
+**Stationarity is essential**:
+- Required for reliable forecasting
+- Test with ACF/PACF and unit root tests
+- Achieve through differencing and log transforms
+
+. . .
+
+**Model selection**:
+- AR models: Past values predict future values
+- MA models: Past shocks predict future values
+- ARMA/ARIMA: Combines both approaches
+
+. . .
+
+**ACF/PACF guide modeling**:
+- AR(p): ACF decays, PACF cuts off at lag p
+- MA(q): ACF cuts off at lag q, PACF decays
+- Use `auto.arima()` as starting point
+
+## Model Building Workflow
+
+1. **Plot the data** → Check for trends, seasonality, changing variance
+
+2. **Test for stationarity** → ACF/PACF, ADF test
+
+3. **Transform if needed** → Difference, log transform
+
+4. **Identify model order** → Use ACF/PACF patterns
+
+5. **Estimate models** → Compare using AIC/BIC
+
+6. **Diagnostic checking** → Residual ACF, normality
+
+7. **Forecast** → Generate predictions with intervals
+
+## Practice Problem
+
+**Your turn!** Try this workflow with AirPassengers data:
+
+1. Load `AirPassengers` data
+2. Transform to achieve stationarity
+3. Use `auto.arima()` to find best seasonal model
+4. Generate 12-month forecast
+5. Plot results with prediction intervals
+
+. . .
+
+**Hint**: Set `seasonal = TRUE` in `auto.arima()`
+
+## Next Class Topics
+
+- **Seasonality**: Seasonal ARIMA models (SARIMA)
+- **Standard Errors**: Proper inference with time series
+- **Distributed Lags**: How past X affects current Y
+- **Coefficient Dynamics**: Time-varying relationships
+
+. . .
+
+**Prepare for next time**:
+- Review seasonal decomposition
+- Practice with ARIMA forecasting
+- Bring questions about model selection!
+
+## Additional Resources
+
+**Textbooks** (free online):
+- [Forecasting: Principles and Practice](https://otexts.com/fpp3/) by Hyndman & Athanasopoulos
+- [A Little Book of R for Time Series](https://a-little-book-of-r-for-time-series.readthedocs.io/)
+
+**R Packages**:
+- `forecast`: Comprehensive forecasting tools
+- `tseries`: Time series tests and utilities
+- `rugarch`: GARCH modeling
+
+**Academic Papers**:
+- Box & Jenkins (1970): Original ARIMA methodology
+- Engle (1982): ARCH models (Nobel Prize work)
+- Bollerslev (1986): GARCH models
+
+## Questions?
+
+**Office hours**: [Your schedule]
+
+**Email**: [Your email]
+
+. . .
+
+**Remember**:
+- Stationarity first, always
+- Let ACF/PACF guide you
+- Compare models systematically
+- Forecast with prediction intervals
+
+. . .
+
+See you next time for seasonal models and distributed lags!
