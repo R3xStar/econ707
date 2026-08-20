@@ -1,0 +1,66 @@
+---
+title: "Module 5 Overview"
+---
+
+## Introduction
+
+Welcome to **Module 5** of ECON 707.
+
+This module introduces students to the foundational concepts of probability and their application in data-driven analysis. Students begin by exploring the difference between discrete and continuous random variables, followed by the construction and interpretation of probability distributions. Using examples such as coin tosses, dice rolls, and manufacturing outcomes, the module develops an understanding of how randomness, expected value, and variance describe uncertainty and predict long-run behavior. Students will also examine empirical probability distributions using simulated and real-world data in R.
+
+Building on these principles, the module introduces the binomial and Poisson distributions—two key models for analyzing the likelihood of events within defined conditions. Learners use R to calculate and visualize probability mass functions, cumulative distribution functions, and inverse functions, as well as to simulate random variables. By the end of the module, students will understand how probability distributions underpin inferential statistics and decision-making in economics and data analysis.
+
+------------------------------------------------------------------------
+
+## Learning Objectives
+
+By the end of this module, you should be able to:
+
+-   MLO 1: **Differentiate** between discrete and continuous random variables. (CLO 3)
+
+-   MLO 2: **Construct** and interpret discrete probability distributions. (CLO 3)
+
+-   MLO 3: **Calculate** expected value, variance, and standard deviation for discrete random variables. (CLO 3)
+
+-   MLO 4: **Apply** the binomial and Poisson probability functions to real-world random processes. (CLO 3)
+
+-   MLO 5: **Use** R to compute probability mass, cumulative, and inverse distribution functions. (CLO 3, 5)
+
+-   MLO 6: **Evaluate** how probability models support decision-making in economics. (CLO 1, 3, 5)
+
+------------------------------------------------------------------------
+
+## Required Texts
+
+The following textbooks are available for free. Please select the links provided to access.
+
+-   Barbara Illowsky and Susan Dean. [Introductory Statistics 2e](https://openstax.org/books/introductory-statistics-2e/pages/1-introduction). OpenStax. Chapter 4.
+
+-   Rafael Irizarry. (2025). [Introduction to Data Science: Data Wrangling and Visualization with R](https://rafalab.dfci.harvard.edu/dsbook-part-1/). Chapters 1-2.
+
+-   Hadley Wickham, Mine Cetinkaya-Rundel, and Garrett Grolemund. (2025) [R for Data Science](https://r4ds.hadley.nz/). Sections 1-19.
+
+-   [Online R documentation](https://cran.r-project.org/manuals.html)
+
+-   [RStudio Cheat Sheets](https://posit.co/resources/cheatsheets/)
+
+------------------------------------------------------------------------
+
+## Activities
+
+-   Complete the hands-on coding exercises embedded in each lesson (MLO 5)\
+-   Complete the weekly class assignment (MLO 1- MLO 6)\
+-   Participate in the discussion form (MLO 4 and MLO 5)\
+-   Take the weekly knowledge quiz (MLO 1 - MLO 6)\
+
+------------------------------------------------------------------------
+
+## Lessons in this Module
+
+-   [5.1 – Discrete Random Variables](mod-5-1-discrete.qmd)
+-   [5.2 – Binomial Probability Distribution](mod-5-2-binomial.qmd)
+-   [5.3 – Poisson Probability Distribution](mod-5-3-poisson.qmd)
+
+------------------------------------------------------------------------
+
+Next: Start with [\*\*Discrete Random Variables\*](mod-5-1-discrete.qmd).

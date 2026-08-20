@@ -1,0 +1,478 @@
+---
+title: "Binomial Distribution"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Probability Mass Functions
+
+A discrete random variable $X$ is a function from the sample space $\Omega$ of a probability space to a finite, or countably infinite, set of real numbers. Together with the function $P$ mapping elements
+
+$$
+\omega \in \Omega
+$$
+
+a random variable determines the **Probability Mass Function**
+
+$$
+P(X(\omega))
+$$
+
+The Probability Mass Function (PMF) is typically denoted as
+
+$$
+P(X)
+$$
+
+and maps **real numbers to probabilities**.
+
+More formally, for any value $x$ in the range of the random variable $X$, let $A$ be part of the sample space of whose members map $X$ to $x$. The probability that $X$ will take on the value $x$ is the value that the probability function assigns to $A$ or:
+
+$$
+P(X = x) = P(A)
+$$
+
+Imagine we have a bag with four chips. Two chips are labeled "A" and two chips are labeled "B". Two chips are drawn at the same time. The sample space for the total number of "A" chips that can be drawn is defined as:
+
+$$
+\Omega = \{AA, AB, BA, BB \}
+$$
+
+Since we are not concerned with ordering, the outcome $AB$ is considered the same as the outcome $BA$.
+
+**The function** $X$ **maps each possible pair of observations to the total number of A's obtained.**
+
+-   $X(AA) =2$ and the probability of observing $X$ is $P(X) = 1/4$.
+
+-   $X(AB) = 1$ and $X(BA) = 1$ so $P(X) = 1/4 + 1/4 = 1/2$.
+
+-   $X(BB) = 0$ and the probability of observing $X$ is $P(X) = 1/4$ .
+
++------------------+-------------------+------------------+
+| $\omega$         | $X(\omega)$       | $P(X)$           |
++==================+===================+==================+
+| AA               | 2                 | $\frac{1}{4}$    |
++------------------+-------------------+------------------+
+| AB               | 1                 | $\frac{1}{2}$    |
+|                  |                   |                  |
+| BA               | 1                 |                  |
++------------------+-------------------+------------------+
+| BB               | 0                 | $\frac{1}{4}$    |
++------------------+-------------------+------------------+
+
+: PMF Example
+
+## Cumulative Distribution Functions
+
+In the above example, the random variable $X$ determines the probability mass function, $P(X)$.
+
+We can use the PMF to ask: what is the probability of observing no A's when drawing two chips from a bag in which there are two A chips and two B chips?
+
+$$
+P(X = x) = P(X = BB) = P(0) = 1/4 = 0.25
+$$
+
+What if we want to know the likelihood of observing 1 or fewer A's?
+
+In other words, we want to know
+
+$$
+P(X \le x) = P(X \le 1)
+$$
+
+The probability mass function (PMF) determines the **Cumulative Distribution Function.**
+
+The cumulative distribution function (CDF) examines the aggregation of probabilities.
+
+What is the likelihood of observing 1 or fewer A's?
+
+This will be the sum of likelihoods of observing 1 A or 0 A, that is:
+
+$$
+P(X \le x) = P(X \le 1) = P(X = 1) + P(X = 0) = 1/2 + 1/4 = 0.75
+$$
+
+## Binomial Experiments
+
+Previously, we have used **empirical** data to generate distributions.
+
+The **binomial probability distribution** is a discrete probability distribution.
+
+In a **binomial experiment**, we are interested in the **number of successes** relative to the **number of trials**.
+
+If $x$ denotes the number of successes occurring in $n$ trials, then $x$ is a discrete random variable.
+
+Assume that we will flip a fair two-sided coin 5 times.
+
+We define success as having a head appear on the upward face of the coin.
+
+We count the number of successes out of the 5 trials.
+
+## Properties of Binomial Experiments
+
+A binomial experiment exhibits the following four properties:
+
+-   The experiment consists of a sequence of $n$ identical trials.
+
+-   Two outcomes: **success** and **failure** are possible on each trial.
+
+-   The probability of success, denoted by $p$, does not change from trial to trial.
+
+-   The trials are independent.
+
+In the previous example, we flipped a fair two-sided coin 5 times.
+
+The experiment consisted of 5 trials, the outcomes were heads (success) and tails (failure), the probability of success, $p = 0.5$, did not change from trial to trial, and the trials were independent.
+
+*We would conclude that the coin flip experiment was a binomial experiment.*
+
+## Combinations and Experiments
+
+We first need to determine the number of successes, $x$, in the trials, $n$.
+
+A combination examines the number of ways objects can be selected, without regard to the order in which they are selected.
+
+The number of experimental outcomes providing exactly $x$ successes in $n$ trials is:
+
+$$\binom{n}{x} = \frac{n!}{x!(n-x)!}$$ If the number of successes is 2 and number of trials is 3, then $x = 2$ and $n = 3$ and:
+
+$$\binom{3}{2} = \frac{3!}{2!(3-2)!} = 3$$
+
+If the number of successes is 5 and the number of trials is 10, the $x = 5$ and $n = 10$ and:
+
+$$\binom{10}{5} = \frac{10!}{5!(10-5)!} = 252$$
+
+```{webr-r}
+
+rm(list = ls())
+
+combos <- tibble(ex_1 = factorial(3)/(factorial(2)*factorial(3-2)),
+                 ex_2 = factorial(10)/(factorial(5)*factorial(10-5)))
+
+kable(combos,
+      align = 'c',
+      col.names = c('C(3,2)', 'C(10,5)'))
+
+```
+
+## Binomial Probability Function
+
+Let $x$ be the number of successes.
+
+Let $p$ be the probability of success on one trial.
+
+Let $n$ be the number of trials.
+
+Let $f(x)$ be the probability of $x$ successes in $n$ trials.
+
+Let $n!$ be $n$ factorial.
+
+The **binomial probability function** is defined as:
+
+$$f(x) = \binom{n}{x} p^x (1-p)^{(n-x)}$$ $$f(x) = \frac{n!}{x!(n-x)!} \, p^x (1-p)^{(n-x)}$$
+
+## Binomial PMF Example
+
+Assume that we have a toggle switch that determines whether a manufacturing line continues to work.
+
+-   When the toggle switch is observed to be in the "on" position, this is considered a success.
+
+-   When the toggle switch is observed to be in the "off" position, this is considered a failure.
+
+-   We know that the probability of the switch being on is $p = 0.95$.
+
+-   We assume that the probability remains constant.
+
+-   We assume that the current switch position is independent of the previous switch position.
+
+**What is the probability of 92 successes in 100 trials?**
+
+Given $n = 100$, $x = 92$, and $p = 0.95$, the probability of $x$ successes in $n$ trials is
+
+$$f(x) = \frac{100!}{92!(100-92)!} \times$$
+
+$$0.95^{92} \, \times (1-0.95)^{(100-92)}$$
+
+We can use R to calculate the probability of 92 successes in 100 trials and $p=0.95$.
+
+In the code below, we perform four calculations:
+
+-   We first declare $n$, $x$, and $p$.
+
+-   We estimate the number of combinations with $n = 100$ and $x = 92$.
+
+-   We estimate the binomial probability with $n = 100$ and $x = 92$.
+
+-   We estimate the binomial probability using the choose function for combinations
+
+-   We estimate the binomial probability using the **dbinom function**.
+
+```{r, warning = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(kableExtra)
+
+n = 100
+x = 92
+p = 0.95
+
+fx <- tibble(combo_x <- factorial(n)/(factorial(x)*factorial(n - x)),
+             fx_calc <- combo_x *p^(x)*(1-p)^(n-x),
+             fx_calc2 <- choose(n,x)*p^(x)*(1-p)^(n-x),
+             fx_func <- dbinom(x, n, p))
+
+kable(fx,
+      align       = "cccc", 
+      digits      = 3,
+      format.args = list(big.mark = ",", scientific = FALSE),
+      caption     = "P(x=92) with n = 100 and p = 0.95",
+      col.names   = c("Combinations",
+                      "Calculated ", 
+                      "Combination Function", 
+                      "Binomial PMF")) %>%
+  kable_styling(font_size = 14)
+```
+
+## Binomial CDF Example
+
+In our previous example, we were interested in the likelihood of observing 92 successes in 100 trials where the probability of success in any given trial was 0.95 and the conditions of a binomial experiment were met.
+
+Let's change the problem so we can demonstrate how a binomial CDF works.
+
+The problem statement:
+
+-   A toggle switch that determines whether a manufacturing line continues to work.
+
+-   When the toggle switch is observed to be in the "on" position, this is considered a success.
+
+-   When the toggle switch is observed to be in the "off" position, this is considered a failure.
+
+-   We know that the probability of the switch being on is $p = 0.95$.
+
+-   We assume that the probability remains constant.
+
+-   We assume that the current switch position is independent of the previous switch position.
+
+-   Assume that $n = 10$
+
+-   Assume $x = 7$
+
+-   Assume $p = 0.95$
+
+What is the probability that $x = 7$, that is, $P(X = 7)$?
+
+What is the probability that $x$ is less than or equal to 7, that is $P(x \le 7)$?
+
+The code below does the following:
+
+-   We declare the variables
+
+-   We estimate the PMF for the binomial using **dbinom**
+
+-   We estimate the CDF for the binomial using **pbinom**
+
+-   We show the CDF is equal to the sum of the PMFs
+
+In other words:
+
+-   We evaluate $P(X = 7)$ using the **dbinom** function
+
+-   We evaluate $P(X \le 7)$ using the **pbinom** function
+
+-   We show $P(X \le 7) = \sum_{i = 0}^7 P(X = x_i)$
+
+We find that the probability of observing 7 successes in an experiment with 10 trials and a probability of success of 0.95 in any given trial is equal to 0.0105.
+
+We find that probability of observing 7 or fewer successes in an experiment with 10 trials and a probability of success of 0.95 in any given trial is equal to 0.0115.
+
+```{r, warning = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(kableExtra)
+
+n = 10
+x = 7
+p = 0.95
+
+fx <- tibble(pmf <- dbinom(x, n, p),
+             cdf <- pbinom(x, n, p),
+             cdf_a <- dbinom(0, 10, 0.95) + dbinom(1, 10, 0.95) +
+                      dbinom(2, 10, 0.95) + dbinom(3, 10, 0.95) +
+                      dbinom(4, 10, 0.95) + dbinom(5, 10, 0.95) +
+                      dbinom(6, 10, 0.95) + dbinom(7, 10, 0.95))
+
+kable(fx,
+      align       = "c", 
+      digits      = 4,
+      caption     = "N = 10 and p = 0.95",
+      col.names   = c("PMF(X = x) ", "CDF(X <= x)", "CDF(X <= x)")) %>%
+kable_styling(font_size = 14,
+              full_width = TRUE)
+
+```
+
+## Graphical Binomial PMF
+
+The code below provides a graphical illustration of three binomial PMFs.
+
+The number of trials is equal to 100.
+
+The variable, $x$, is a sequence of integers from 1 to 100.
+
+In the first case, the probability of success in any given trial is 0.3.
+
+In the second case, the probability of success in any given trial is 0.4.
+
+In the third case, the probability of success in any given trial is 0.5.
+
+You should observe that the center of each PMF shifts right as the probability of success in any given independent trial increases.
+
+```{r, warning = FALSE, message = FALSE}
+
+rm(list = ls())
+
+x <- 1:100
+
+lines_1 <- tibble(x, p_x = dbinom(x, size = 100, prob = 0.3), 
+                      prob = 0.1)
+lines_2 <- tibble(x, p_x = dbinom(x, size = 100, prob = 0.4), 
+                      prob = 0.3)
+lines_3 <- tibble(x, p_x = dbinom(x, size = 100, prob = 0.5), 
+                      prob = 0.5)
+
+lines <- bind_rows(lines_1, lines_2, lines_3)
+
+ggplot(lines,
+       aes(x     = x,
+           y     = p_x,
+           group = prob,
+           fill  = prob)) + 
+geom_col() +
+facet_wrap(vars(prob)) +
+theme_minimal() + 
+theme(legend.position = " ") +
+labs(title = "Binomial Probability Mass Function",
+     x     = " ",
+     y     = "P(X = x)")
+```
+
+## Graphical Binomial CDF
+
+The code below provides a graphical illustration of three binomial CDFs.
+
+The number of trials is equal to 100.
+
+The variable, $x$, is a sequence of integers from 1 to 100.
+
+In the first case, the probability of success in any given trial is 0.3.
+
+In the second case, the probability of success in any given trial is 0.4.
+
+In the third case, the probability of success in any given trial is 0.5.
+
+```{r, warning = FALSE, message = FALSE}
+
+rm(list = ls())
+
+x <- 1:100
+
+lines_1 <- tibble(x, p_x = pbinom(x, size = 100, prob = 0.3), 
+                      prob = 0.1)
+lines_2 <- tibble(x, p_x = pbinom(x, size = 100, prob = 0.4), 
+                      prob = 0.3)
+lines_3 <- tibble(x, p_x = pbinom(x, size = 100, prob = 0.5), 
+                      prob = 0.5)
+
+lines <- bind_rows(lines_1, lines_2, lines_3)
+
+ggplot(lines,
+       aes(x     = x,
+           y     = p_x,
+           group = prob,
+           fill  = prob)) + 
+geom_col() +
+facet_wrap(vars(prob)) +
+theme_minimal() + 
+theme(legend.position = " ") +
+labs(title = "Binomial Cumulative Distribution Function",
+     x     = " ",
+     y     = "P(X <= x)")
+
+```
+
+## Expected Value and Variance
+
+Given $x$, $n$, and $p$, the expected value for the binomial distribution is:
+
+$$E(x) = \mu = np$$
+
+The variance of the binomial distribution is:
+
+$$var(x) = \sigma^2 = np \, (1-p)$$
+
+Let
+
+-   $n$ = 50
+
+-   $x = 23$
+
+-   $p$ = 0.55
+
+The expected value, variance, and standard deviation are equal to:
+
+$$E(x) = \mu = 50 \times 0.55 = 27.5$$ $$var(x) = \sigma ^2 = np \, (1-p) = 50 \times 0.55 \times (1 - 0.55) = 12.375$$
+
+$$sd(x) = \sqrt{(\sigma^2)} = \sqrt{(12.375)} = 3.52$$
+
+```{r, warning = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(kableExtra)
+
+n = 50
+x = 23
+p = 0.55
+
+fx <- tibble(pmf <- dbinom(x, n, p),
+             cdf <- pbinom(x, n, p),
+             ev  <- n*p,
+             var <- n*p*(1-p),
+             sd  <- sqrt(n*p*(1-p)))
+
+kable(fx,
+      align       = "c", 
+      digits      = 4,
+      caption     = "N = 50, X = 23, and p = 0.55",
+      col.names   = c("PMF(X = x) ", 
+                      "CDF(X <= x)", 
+                      "Expected Value",
+                      "Variance",
+                      "Standard Deviation")) %>%
+kable_styling(font_size = 14,
+              full_width = TRUE)
+
+```

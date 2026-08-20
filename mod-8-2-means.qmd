@@ -1,0 +1,666 @@
+---
+title: "Hypothesis Testing: Means"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Hypothesis Testing
+
+Let $n$ be the sample size used to estimate $\bar{x}$ and $\sigma$ the
+population standard deviation for $x$.
+
+Let $\mu_0$ be the hypothesized value of the population mean under $H_0$
+such that:
+
+The test-statistic for testing hypotheses regarding the sample mean when
+$\sigma$ is known is:
+
+$$z = \frac{\bar{x} - \mu_0}{\sigma/\sqrt{n}}$$
+
+The value of $z$ is known as the **test statistic**.
+
+Given a level of significance, $\alpha$, we can obtain the **critical
+value** of the test statistic.
+
+If it is a one-tailed test, then we use $\alpha$ to obtain the test
+statistic.
+
+If it is a two-tailed test, then we use $\alpha/2$ to obtain the test
+statistic.
+
+## One-Tailed Hypothesis Test
+
+We hypothesize that the population mean is less than than 42 and let
+$\alpha = 0.10$.
+
+$$H_0: \mu_1 \ge 42$$
+
+$$H_a: \mu < 42$$
+
+Our **rejection region** is in the **left tail** of the standard normal
+distribution or:
+
+$$\text{If} \; z \le z_c \implies \text{reject} \; H_0$$
+
+$$\text{If} \; z > z_c \implies \text{fail to reject} \; H_0$$
+
+Given $\alpha = 0.10$ and a left-tail test, we need to find
+$z_{\alpha} = z_{0.10}$.
+
+The critical value of the test statistic can be found with a standard
+normal table or using R as in the code chunk below.
+
+Given the $\alpha = 0.10$ and the rejection reject is in the left tail,
+we use the **qnorm** function to find the critical value of the test
+statistic.
+
+The critical value of the test statistic is -1.282.
+
+```{webr-r}
+
+rm(list = ls())
+
+qnorm(.1,0,1)
+```
+
+For this one-tailed hypothesis,
+
+$$\text{If} \; z \le -1.28 \implies \text{reject} \; H_0$$
+$$\text{If} \; z > -1.28 \implies \text{fail to reject} \; H_0$$
+
+If the estimated test statistic is less than or equal to -1.282, we
+reject the null hypothesis. If the estimated test statistic is greater
+than -1.282, then we fail to reject the null hypothesis.
+
+The code chunk below graphically depicts the rejection region for this
+one-tailed hypothesis test.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+df <- data.frame(x = seq(-4, 4, length.out = 100)) %>%
+          mutate(y = dnorm(x))
+
+ggplot(df, 
+       aes(x = x,
+           y = y)) +
+geom_area(fill = 'sky blue') +
+geom_ribbon(data = df %>% filter(x <= -1.28), 
+            aes(ymax = y), ymin = 0, fill= "red", alpha = 0.5) +
+geom_vline(aes(xintercept = -1.28), linetype = 'dashed', linewidth = 1.1) +
+theme_minimal() +
+labs(x = "Z",
+     y = "P(Z)",
+     title = "Standard Normal Distribution",
+     subtitle = "One Tailed Rejection Region for Alpha = 0.10 is Z <= -1.28")
+
+```
+
+## One-Tailed Hypothesis Test
+
+We hypothesize that the population mean is greater than 42 and let
+$\alpha = 0.05$.
+
+$$H_0: \mu \le 42$$
+
+$$H_a: \mu > 42$$
+
+Our rejection region is in the **right tail** of the standard normal
+distribution or:
+
+$$\text{If} \; z \ge z_c \implies \text{reject} \; H_0$$
+
+$$\text{If} \; z < z_c \implies \text{fail to reject} \; H_0$$
+
+Given $\alpha = 0.05$ and a right-tail test, we need to find
+$z_{(1-\alpha)} = z_{0.95}$.
+
+Given the $\alpha = 0.05$ and the rejection reject is in the left tail,
+we can use the **qnorm** function to find the critical value of the test
+statistic.
+
+```{webr-r}
+
+rm(list = ls())
+
+qnorm(.95,0,1)
+```
+
+For this one-tailed hypothesis,
+
+$$\text{If} \; z \ge 1.65 \implies \text{reject} \; H_0$$
+
+$$\text{If} \; z < 1.65 \implies \text{fail to reject} \; H_0$$If the
+estimated test statistic is greater than or equal to 1.65, then we
+reject the null hypothesis. If the estimated test statistic is less than
+1.65, we fail to reject the null hypothesis.
+
+The code chunk below illustrates the rejection region in question
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+df <- data.frame(x = seq(-4, 4, length.out = 100)) %>%
+          mutate(y = dnorm(x))
+
+ggplot(df, 
+       aes(x = x,
+           y = y)) +
+geom_area(fill = 'sky blue') +
+geom_ribbon(data = df %>% filter(x >= 1.65), 
+            aes(ymax = y), ymin = 0, fill= "red", alpha = 0.5) +
+geom_vline(aes(xintercept = 1.65), linetype = 'dashed', linewidth = 1.1) +
+theme_minimal() +
+labs(x = "Z",
+     y = "P(Z)",
+     title = "Standard Normal Distribution",
+     subtitle = "One Tailed Rejection Region for Alpha = 0.05 is Z >= 1.65")
+
+```
+
+## Two-Tailed Hypothesis Test
+
+We hypothesize that the population mean is not equal to 42 or:
+
+$$H_0: \mu = 42$$
+
+$$H_a: \mu \ne 42$$
+
+This is a two-tailed hypothesis test.
+
+The rejection region lies in each tail of the distribution.
+
+**Why? Our null hypothesis is that the mean is equal to 42. If find
+evidence that the mean is sufficiently different from 42, in either
+direction, we will reject the null hypothesis.**
+
+We need to find the critical values of $z$ for $\alpha/2$ and
+$1-\alpha/2$.
+
+Let $\alpha = 0.05$ so $\alpha/2 = 0.025$ and $1-\alpha/2 = 0.975$.
+
+The critical values of the test statistic can be found using R as
+before. Since the standard normal is symmetrically distributed around
+the mean of zero, the critical values are -1.96 and 1.96.
+
+```{r}
+
+rm(list = ls())
+
+qnorm(0.025,0,1)
+qnorm(0.975,0,1)
+```
+
+For this two-tailed hypothesis,
+
+$$\text{If} \; z \le -1.96 \implies \text{reject} \; H_0$$
+
+$$\text{If} \; z \ge 1.96 \implies \text{reject} \; H_0$$
+
+$$\text{If} \; -1.95 < z < 1.96 \implies \text{fail to reject} \; H_0$$
+
+If the estimated test statistic is less than or equal to -1.96 or less
+than or equal to 1.96, then we reject the null hypothesis.
+
+The code chunk below illustrates the rejection regions for the
+hypothesis test.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+df <- data.frame(x = seq(-3, 3, length.out = 100), by = 0.1) %>%
+          mutate(y = dnorm(x))
+
+ggplot(df, 
+       aes(x = x,
+           y = y)) +
+geom_area(fill = 'sky blue') +
+geom_ribbon(data = subset(df, x <= -1.96), aes(ymax = y), 
+            ymin = 0, fill= "red", alpha = 0.5) +
+geom_ribbon(data = subset(df, x >= 1.96), aes(ymax = y), 
+            ymin = 0, fill= "red", alpha = 0.5) +
+geom_vline(aes(xintercept = -1.96), linetype = 'dashed') +
+geom_vline(aes(xintercept = 1.96), linetype = 'dashed') +
+theme_minimal() +
+labs(x = "Z",
+     y = "P(Z)",
+     title = "Standard Normal - Two Tailed Hypothesis Test",
+     subtitle = "Alpha = 0.05 and Z <= -1.96 and Z => 1.96")
+```
+
+## One-Tailed Example
+
+We have collected a sample of 50 individuals and assume that the 50
+individuals are representative of the population. The individuals take a
+standard test after receiving training and the average of their scores
+was 19.4. We know that, in general, the mean score on the test was 20.0.
+
+Did the test lower the average test score? Test this hypothesis at a 5%
+significance level.
+
+Consider the following hypothesis test with $\alpha = 0.05$.
+
+$$H_0: \mu \ge 20$$
+
+$$H_a: \mu < 20$$
+
+The critical value of the test statistic for $\alpha = 0.05$ is -1.65.
+
+```{webr-r}
+
+rm(list = ls())
+
+qnorm(0.05,0,1)
+
+```
+
+Let
+
+$$
+n = 50
+$$
+
+$$
+\bar{x} = 50
+$$
+
+$$
+\sigma = 2
+$$
+
+Given the known population variance and standard deviation, we can
+estimate the Z-score for the average score of the 50 individuals or:
+
+$$z =  \frac{\bar{x} - \mu_0}{\sigma/\sqrt{n}} = \frac{19.4 - 20}{2/\sqrt{50}} = -2.12132$$
+
+We reject $H_0$ at the 5% level of statistical significance as
+
+$$z = -2.12 < -1.65 = z_c$$
+
+We can also use **pnorm** to find $P(z \le -2.12132) =$ 0.0169 and
+reject $H_0$ since:
+
+$$P(z \le -2.12132) = 0.017 < 0.05 = P(z < 1.65)$$
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+xbar = 19.4
+mu = 20
+n = 50
+sigma = 2
+
+df <- tibble(crit_z <- qnorm(0.05,0,1),
+             z <- (xbar-mu)/(sigma/sqrt(n)),
+             pnorm(z, 0, 1))
+
+kable(df,
+      digits = 3,
+      align = 'c',
+      col.names = c('Critical Z', 'Estimated Z', 'P(Z <= z)')) %>%
+kable_classic()
+
+```
+
+## One-Tailed Example
+
+Consider the following hypothesis test with $\alpha = 0.10$.
+
+$$H_0: \mu \le 30$$
+
+$$H_a: \mu > 30$$
+
+Let $n = 90$, $\bar{x} = 31.7$, and $\sigma = 12.5$, then
+
+$$z =  \frac{\bar{x} - \mu_0}{\sigma/\sqrt{n}} = \frac{31.2 - 30}{12.5/\sqrt{90}} = 0.91$$
+
+The critical value of the test statistic for $1 - \alpha = 0.90$ is
+1.282.
+
+We fail to reject $H_0$ at the 10% level of statistical significance as:
+
+$$z = 0.91 < 1.28 = z_c$$
+
+We can also use **pnorm** to find $P(z \le 0.91) =$ 0.819 and fail to
+reject $H_0$ since:
+
+$$P(z \le 0.91) = 0.812 < 0.90 = P(z < 1.28)$$
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+xbar = 31.2
+mu = 30
+sigma = 12.5
+n = 90
+
+df <- tibble(crit_z <- qnorm(0.90,0,1),
+             z <- (xbar-mu)/(sigma/sqrt(n)),
+             pnorm(z, 0, 1))
+
+kable(df,
+      digits = 3,
+      align = 'c',
+      col.names = c('Critical Z', 'Estimated Z', 'P(Z <= z)')) %>%
+kable_classic()
+
+```
+
+## Hypothesis Test in R
+
+Assume that we observe pressure readings for a pipe.
+
+We want to know whether pressure is higher than 127.9.
+
+We know that $\sigma = 8$ and we set $\alpha = 0.05$.
+
+We find that $z = 0.693$ and that $z_c = 1.65$.
+
+We find that $P(z \ge 0.693) = 0.2443$.
+
+We fail to reject $H_0: \mu \le 127.9$ at the 5% level of significance.
+
+We would also fail to reject the null at the 10% level of significance.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+mu = 127.9
+sigma = 8
+alpha = 0.05
+
+pressure <- c(110, 132, 138, 98, 122, 190, 92, 105, 104, 148, 
+              83, 193, 132, 114, 192, 183, 100, 99, 111, 123, 
+              130, 194, 141, 138, 98, 94, 97, 128, 105, 108, 
+              193, 85, 80, 132, 134, 148, 192)
+
+xbar = mean(pressure)
+
+z = (mean(pressure) - mu)/(sigma/sqrt(length(pressure)))
+
+z_crit <- qnorm((1-alpha),0,1)
+p_z <- 1-pnorm(z,0,1)
+
+test <- data.frame(mu, xbar, alpha, z, z_crit, p_z)
+
+kable(test,
+      align     = "c",
+      digits    = 3,
+      caption   = "Hypothesis Test",
+      col.names = c("Hypothesized Mean", "Sample Avg", 
+                    "Sig. Level", "Z", "Z(c)",
+                    "1-CDF(Z)")) %>%
+kable_styling(font_size = 11)
+
+```
+
+## Hypothesis Test in R
+
+We observe pressure readings for a pipe.
+
+We hypothesize that $\mu = 127.3$.
+
+Let $\sigma = 10$ and $\alpha = 0.1$.
+
+Two-tailed hypothesis: Find $\alpha/2$ and $1-\alpha/2$ critical values.
+
+$z_c = -1.65$ and $z_c = 1.65$
+
+We find $z = 2.66$.
+
+We reject $H_0$ at 5% as $z > z_c$.
+
+We also reject $H_0$ at 1% as $P(Z \ge z) = .004 > 0.005 = \alpha/2$.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+mu = 127.3
+sigma = 10
+alpha = 0.1
+
+pressure <- c(110, 132, 138, 98, 122, 190, 92, 105, 104, 148, 
+              83, 193, 132, 114, 192, 183, 100, 99, 111, 123, 
+              130, 194, 141, 138, 98, 94, 97, 128, 105, 108, 
+              193, 85, 80, 132, 134, 148, 192, 218, 113, 
+              138, 83, 103, 109, 183, 148, 153, 135, 146)
+
+xbar = mean(pressure)
+
+z = (mean(pressure) - mu)/(sigma/sqrt(length(pressure)))
+
+z_crit_left <- qnorm((alpha/2),0,1)
+z_crit_right <- qnorm(1 - (alpha/2),0,1)
+p_z <- pnorm(z,0,1, lower.tail = FALSE)
+
+test <- data.frame(mu, xbar, alpha, z, z_crit_right, p_z)
+
+kable(test,
+      align     = "cccccc",
+      caption   = "Hypothesis Test",
+      col.names = c("Hypothesized Mean", "Sample Avg", 
+                    "Sig. Level", "Z", "Z(c) at 5%",
+                    "1-CDF(Z)")) %>%
+  kable_styling(font_size = 11)
+
+```
+
+## Unknown Variance
+
+If $\sigma$ is unknown, the test statistic has a *t* distribution with $n-1$ degrees of freedom.
+
+$$t = \frac{\bar{x} - \mu}{s/\sqrt{n}}$$
+
+Consider the following hypothesis test:
+
+$$H_0: \mu \le 12$$
+
+$$H_a: \mu > 12$$
+
+If $n = 25$, $\bar{x} = 14$, and $s = 4.32$, then
+
+$$t_{n-1} = \frac{\bar{x} - \mu}{s/\sqrt{n}} = \frac{14 - 12}{4.32/\sqrt{25}} = 2.32$$
+
+Let $\alpha = 0.5$ thus the critical value of the t-statistic is
+`r qt(0.95, 24)`.
+
+We reject the null hypothesis at the 5% level of significance since:
+
+$$t = 2.32 > 1.71 = t_c^{\alpha = 0.05}$$
+
+## Hypothesis Testing
+
+Let $n = 50$, $\bar{x} = 38.7$, $s = 4.58$, and $\alpha = 0.1$ and
+
+$$H_0: \mu = 39.9$$
+
+$$H_0: \mu \ne 39.9$$
+
+The test statistic is equal to:
+
+$$t_{n-1} = \frac{\bar{x} - \mu}{s/\sqrt{n}} = \frac{38.7 - 39.9}{4.58/\sqrt{50}} = -1.85$$
+
+The critical value of the test-statistic is `r qt(.95,49)`.
+
+We reject the null hypothesis at the 10% level of significance since:
+
+$$t = -1.85 < -1.68 = t_c^{\alpha/2 = 0.05}$$
+
+However, we fail to reject at the 5% level of significance since:
+
+$$t = -1.85 > -2.01 = t_c^{\alpha/2 = 0.025}$$
+
+## Standard Normal and T Distribution
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+df <- data.frame(x = seq(-5, 5, length.out = 100), by = 0.1) %>%
+          mutate(y = dt(x, 1))
+
+ggplot(df,
+       aes(x = x,
+           y = y,
+           color = "red")) +
+  geom_line(linewidth = 1.2) +
+  stat_function(fun = dnorm,
+                args = list(mean = 0, sd = 1),
+                color = "dark blue",
+                size = 1.2) +
+  theme_minimal() +
+  theme(legend.position = "") +
+  labs(title = "Standard Normal and T-Distribution",
+       subtitle = "1 Degree of Freedom for T-Distribution",
+       y = "P(X)",
+       x = "X")
+```
+
+## Rejection Regions
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+df <- data.frame(x = seq(-3, 3, length.out = 100), by = 0.1) %>%
+          mutate(y = dt(x, 24))
+
+ggplot(df, 
+       aes(x = x,
+           y = y)) +
+geom_area(fill = 'sky blue') +
+geom_ribbon(data = subset(df, x >= 1.71),
+            aes(ymax = y), 
+            ymin = 0, fill= "red", alpha = 0.5) +
+geom_vline(aes(xintercept = 1.71), 
+           linetype = 'dashed', size = 1.1) +
+theme_minimal() +
+labs(x = "X",
+     y = "P(X)",
+     title = "T Distribution and One-Tailed Hypothesis Test",
+     subtitle = "Alpha = 0.05, 24 DF, and Critical T => 1.71")
+```
+
+## Hypothesis Test in R
+
+We observe pressure readings.
+
+We hypothesize that $\mu = 127.3$.
+
+$n= 48$, $s = 35.3$, $\alpha = 0.01$
+
+Find $\alpha/2$ and $1-\alpha/2$ critical values.
+
+$t_c = -2.69$ and $t_c = 2.69$
+
+$t = 2.37$.
+
+We fail to reject $H_0$ as $t < t_c$.
+
+We fail to reject $H_0$ as $P(T > t) = .011 > 0.005 = \alpha/2$.
+
+We can, however, reject $H_0$ at 5%.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+mu = 127.3
+alpha = 0.01
+
+pressure <- c(90, 76, 98, 108, 102, 100, 92, 105, 104, 148, 
+              83, 93, 132, 114, 92, 103, 100, 99, 111, 123, 
+              130, 194, 141, 138, 98, 94, 97, 128, 105, 108, 
+              193, 85, 80, 132, 134, 148, 192, 218, 113, 
+              138, 83, 103, 109, 113, 138, 103, 105, 106)
+
+xbar = mean(pressure)
+sd = sd(pressure)
+
+t = (mean(pressure) - mu)/(sd/sqrt(length(pressure)))
+
+t_crit_left <- qt((alpha/2),length(pressure) - 1)
+t_crit_right <- qt(1 - (alpha/2), length(pressure - 1))
+
+t_p <- pt(t, length(pressure -1))
+
+test <- data.frame(mu, xbar, alpha, t, t_crit_left, t_p)
+
+kable(test,
+      align     = "c",
+      digits    = 3,
+      caption   = "Hypothesis Test",
+      col.names = c("Hypothesized Mean", "Sample Avg", 
+                    "Sig. Level", "T", "T(c) at 1%",
+                    "CDF(T)")) %>%
+  kable_styling(font_size = 11)
+
+```

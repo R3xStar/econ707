@@ -1,0 +1,199 @@
+---
+title: "Chebyshev's Theorem"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Z-Scores
+
+Recall that we previously defined a **Z-score** as a measure of the number of standardized deviations an observation is from the mean.
+
+Given population data distributed with mean, $\mu$, and standard deviation, $\sigma$, the **Z-score** for an observation, $x$, is denoted as:
+
+$$
+Z_x = \frac{x - \mu}{\sigma}
+$$
+
+If the Z-score of an observation was -2.5, then we would state that the observation lies 2.5 standard deviations to the left of the mean. If the Z-score is equal to 1.75, then we would state that the observation lies 1.75 standard deviations to the right of the population mean.
+
+Let $x_1 = 50$, $\mu_{x_1} = 20$, and $\sigma_{x_1}=5$, then the $z_{x_1}$ is equal to
+
+$$
+z_{x_1} = \frac{x_1 - \mu}{\sigma} = \frac{50-20}{5} = 6
+$$
+
+The observation $x_1$ is 6 standard deviations from the mean of 20. Given that $z_{x_1}$ is positive, we know that the observation $x_1$ is 6 standard deviations to the right of $\mu_{x_1}$.
+
+## Chebyshev's Theorem
+
+**Chebyshev's Theorem** states at least $(1 - 1 / z^2)$ of the data values must be within $z$ standard deviations of the mean where $z$ is any value greater than 1.
+
+[*Since the theorem is independent of the underlying distribution, we can apply Chebyshev's theorem to a data set without worrying about how the data are distributed.*]{.underline}
+
+With this in mind, let $z = 2$, $z = 3$, and $z=4$, then
+
+$$z = 2 \rightarrow (1 - \frac{1}{2^2}) = 1 - 1/4 = 0.750 $$
+
+$$z = 3 \rightarrow (1 - \frac{1}{3^2}) = 1 - 1/9 = 0.889$$ $$z = 4 \rightarrow (1 - \frac{1}{4^2}) = 1 - 1/16 = 0.972$$
+
+Chebyshev's theorem implies that at least 75% of observations will lie within 2 standard deviations of the mean and at least 88.9% of observations with lie within 3 standard deviations of the mean.
+
+This is quite useful when you do not know the underlying distribution of the data. The theorem provides a conservative estimate relative to the **Empirical Rule** which applies only to normal distributions and that we will explore later.
+
+## Chebyshev's Examples
+
+### Example 1
+
+Assume that you have a dataset with a mean of 100 and a standard deviation of 10.
+
+$$
+\mu = 100 
+$$
+$$
+\sigma = 10
+$$
+
+You are interested in a range of 3 standard deviations.
+
+$$
+\mu - 3\sigma = 100 - 3 \times 10 = 70
+$$
+$$
+\mu + 3\sigma = 100 + 3 \times 10 = 130
+$$
+
+Chebyshev's Theorem tells you at least 89% of observations fall between 70 and 130. This implies that no more than 11% of observations fall outside this range.
+
+### Example 2
+
+Assume that a class takes a test. The mean score on the test is 75 and the standard deviation is 5. What proportion of scores fall between 65 and 85?
+
+Given the mean is 75, you should note that 65 is 2 standard deviations less than the mean and 85 is 2 standard deviations greater than the mean.
+
+By Chebyshev's Theorem, this means that at least 75% of observations fall between 65 and 85. This implies that no more than 25% of observations fall outside this range.
+
+### Example 3
+
+Let $\mu = 80$ and $\sigma = 4$.
+
+$$ \mu - 2\sigma = 80 - (2 \times 4) = 72$$
+$$\mu + 2\sigma = 80 + (2 \times 4) = 88$$
+
+At least 75% of observations for a distribution with $\mu = 80$ and $\sigma = 4$ lie in the (72,88) range.
+
+$$ \mu - 3\sigma = 80 - (3 \times 4) = 68$$
+$$\mu + 3\sigma = 80 + (3 \times 4) = 92 $$
+
+At least 75% of observations lie in the (68,92) range.
+
+## The Normal Distribution
+
+The **normal distribution** is undoubtedly one of the most important, if not the most important, distribution in statistics. While there are technically an infinite number of normal distributions, we often refer to "the normal distribution" to discuss the properties of the distribution. Unlike the previous examples which have been collections of **discrete** observations, the normal distribution is **continuous**.
+
+A normal distribution in $X$ with mean $\mu$ and variance $\sigma^2$ is a distribution resulting from the **probability distribution function** that is defined on the $x \in (-\infty, \infty)$ interval and is equal to:
+
+$$
+P(x) = \frac{1}{\sigma \sqrt{2 \pi}} e^{-(x - \mu) / (2 \sigma^2)}
+$$
+
+We will discuss the properties of the normal and other distributions at greater length in coming modules.
+
+For now, we will focus on the general properties that help us think about measures of central tendency, variability, and the shape of the data.
+
+The normal distribution has the following properties.
+
+-   The mean, mode, and median are all equal.
+
+-   The normal distribution is symmetric around $\mu$
+
+-   Exactly 50% of the values lie to the left of $\mu$
+
+-   Exactly 50% of the values lie to the right of $\mu$
+
+-   The total area under the curve is equal to 1
+
+## The Empirical Rule
+
+The **Empirical rule** is based on Chebyshev's theorem and, given a normal distribution, states that:
+
+-   Approximately 68% of observations lie within one standard deviation of $\mu$.
+
+-   Approximately 95% of observations lie within two standard deviations of $\mu$.
+
+-   Approximately 99% of observations lie within three standard deviations of $\mu$.
+
+![The Normal Distribution](images/Normal.png){fig-alt="Screenshot of the normal distribution" width="497"}
+
+### Example 1
+
+Let $\mu = 25$ and $\sigma = 5$ then, by the empirical rule for a normal distribution, we know:
+
+-   Approximately 68% of observations lie between 20 and 30 or $\mu \pm \sigma$.
+
+-   Approximately 95% of observations lie between 15 and 35 or $\mu \pm 2\sigma$.
+
+-   Approximately 99% of observations lie between 10 and 40 or $\mu \pm 3\sigma$.
+
+We can confirm this by estimating the Z-Score for 10, 15, 20, 30, 35, and 40.
+
+$$
+Z(10) = \frac{10 - 25}{5} = -3
+$$
+
+$$
+Z(15) = \frac{15 - 25}{5} = -2
+$$
+
+$$
+Z(20) = \frac{20 - 25}{5} = -1 
+$$
+
+$$
+Z(30) = \frac{30 - 25}{5} = 1
+$$
+
+$$
+Z(35) = \frac{35 - 35}{5} = 2
+$$
+
+$$
+Z(40) = \frac{40 - 25}{5} = 3
+$$
+
+### Example 2
+
+Assume that a pizza delivery restaurant has a mean delivery time of 32 minutes with a standard deviation of 4 minutes. Assume that delivery times are normally distributed.
+
+What is the range of times in which 68%, 95%, and 95% of deliveries occur?
+
+According to the Empirical Rule,
+
+$$
+\text{68\%} \rightarrow  \mu \pm \sigma = 32 \pm 4 = (28,36)
+$$
+
+$$
+\text{95\%} \rightarrow \mu \pm 2\sigma = 32 \pm 8 = (24,40)
+$$
+
+$$
+\text{99\%} \rightarrow \mu \pm 3\sigma = 32 \pm 12 = (20,44)
+$$

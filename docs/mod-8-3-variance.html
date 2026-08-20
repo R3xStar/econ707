@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.24">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>38&nbsp; Hypothesis Testing: Variance – ECON 707</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mod-8-2-means.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-d9ea66fcd6c317012447f26e9c021348.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+
+<link href="site_libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./mod-8-0-overview.html">Inference</a></li><li class="breadcrumb-item"><a href="./mod-8-3-variance.html"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Hypothesis Testing: Variance</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header sidebar-header-stacked">
+      <a href="./index.html" class="sidebar-logo-link">
+      </a>
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">ECON 707</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Introduction</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">ECON 707</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sitti.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Meet Your Instructor</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./about.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Course Objectives</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Introduction to R</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-1-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Module 1 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-1-1-intro-to-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Economic Analysis</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-1-2-intro-to-r.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Introduction to R</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-1-3-intro-to-r-variables.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Variables in R</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-1-4-intro-to-r-dataframes.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Data frames in R</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-1-5-quarto.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Using Quarto</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Descriptive Statistics</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-2-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">Module 2 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-2-1-frequency.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">11</span>&nbsp; <span class="chapter-title">Frequency Distributions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-2-2-central.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">12</span>&nbsp; <span class="chapter-title">Central Tendency</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-2-3-variance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">13</span>&nbsp; <span class="chapter-title">Measures of Dispersion</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-2-4-zscores.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">14</span>&nbsp; <span class="chapter-title">Z-Scores</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Covariance and Correlation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-3-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">15</span>&nbsp; <span class="chapter-title">Module 3 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-3-1-skewness.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">16</span>&nbsp; <span class="chapter-title">Skewness</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-3-2-normal.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">17</span>&nbsp; <span class="chapter-title">Chebyshev’s Theorem</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-3-3-correlation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">18</span>&nbsp; <span class="chapter-title">Correlation</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Introduction to Probability</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-4-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">19</span>&nbsp; <span class="chapter-title">Module 4 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-4-1-probability.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">20</span>&nbsp; <span class="chapter-title">Introduction to Probability</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-4-2-rules.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">21</span>&nbsp; <span class="chapter-title">Probability Rules</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-4-3-conditional.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">22</span>&nbsp; <span class="chapter-title">Conditional Probability</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Discrete Probability</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-5-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">23</span>&nbsp; <span class="chapter-title">Module 5 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-5-1-discrete.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">24</span>&nbsp; <span class="chapter-title">Discrete Random Variables</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-5-2-binomial.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">25</span>&nbsp; <span class="chapter-title">Binomial Distribution</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-5-3-poisson.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">Poisson Distribution</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true">
+ <span class="menu-text">Continuous Probability</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-6-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">27</span>&nbsp; <span class="chapter-title">Module 6 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-6-1-uniform.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">28</span>&nbsp; <span class="chapter-title">Uniform Distributions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-6-2-normal.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">29</span>&nbsp; <span class="chapter-title">Normal Distributions</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-6-3-exponential.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">Exponential Distributions</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sampling Distributions</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-7-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">31</span>&nbsp; <span class="chapter-title">Module 7 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-7-1-sampling.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">32</span>&nbsp; <span class="chapter-title">Sampling</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-7-2-central.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">33</span>&nbsp; <span class="chapter-title">Central Limit Theorem</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-7-3-interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">34</span>&nbsp; <span class="chapter-title">Interval Estimation</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true">
+ <span class="menu-text">Inference</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-8-0-overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Module 8 Overview</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-8-1-hypothesis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Hypothesis Testing</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-8-2-means.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Hypothesis Testing: Means</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mod-8-3-variance.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Hypothesis Testing: Variance</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#difference-in-means" id="toc-difference-in-means" class="nav-link active" data-scroll-target="#difference-in-means"><span class="header-section-number">38.1</span> Difference in Means</a></li>
+  <li><a href="#difference-example" id="toc-difference-example" class="nav-link" data-scroll-target="#difference-example"><span class="header-section-number">38.2</span> Difference Example</a></li>
+  <li><a href="#difference-in-means-1" id="toc-difference-in-means-1" class="nav-link" data-scroll-target="#difference-in-means-1"><span class="header-section-number">38.3</span> Difference in Means</a></li>
+  <li><a href="#difference-example-1" id="toc-difference-example-1" class="nav-link" data-scroll-target="#difference-example-1"><span class="header-section-number">38.4</span> Difference Example</a></li>
+  <li><a href="#difference-example-2" id="toc-difference-example-2" class="nav-link" data-scroll-target="#difference-example-2"><span class="header-section-number">38.5</span> Difference Example</a></li>
+  <li><a href="#unknown-variance" id="toc-unknown-variance" class="nav-link" data-scroll-target="#unknown-variance"><span class="header-section-number">38.6</span> Unknown Variance</a></li>
+  <li><a href="#hypothesis-test-in-r" id="toc-hypothesis-test-in-r" class="nav-link" data-scroll-target="#hypothesis-test-in-r"><span class="header-section-number">38.7</span> Hypothesis Test in R</a></li>
+  <li><a href="#hypothesis-test-in-r-1" id="toc-hypothesis-test-in-r-1" class="nav-link" data-scroll-target="#hypothesis-test-in-r-1"><span class="header-section-number">38.8</span> Hypothesis Test in R</a></li>
+  <li><a href="#chi-squared-distribution" id="toc-chi-squared-distribution" class="nav-link" data-scroll-target="#chi-squared-distribution"><span class="header-section-number">38.9</span> Chi-Squared Distribution</a></li>
+  <li><a href="#chi-square-distribution" id="toc-chi-square-distribution" class="nav-link" data-scroll-target="#chi-square-distribution"><span class="header-section-number">38.10</span> Chi-Square Distribution</a></li>
+  <li><a href="#chi-squared-distributions" id="toc-chi-squared-distributions" class="nav-link" data-scroll-target="#chi-squared-distributions"><span class="header-section-number">38.11</span> Chi-Squared Distributions</a></li>
+  <li><a href="#chi-squared-properties" id="toc-chi-squared-properties" class="nav-link" data-scroll-target="#chi-squared-properties"><span class="header-section-number">38.12</span> Chi-Squared Properties</a></li>
+  <li><a href="#chi-squared-examples" id="toc-chi-squared-examples" class="nav-link" data-scroll-target="#chi-squared-examples"><span class="header-section-number">38.13</span> Chi-Squared Examples</a></li>
+  <li><a href="#chi-squared-examples-1" id="toc-chi-squared-examples-1" class="nav-link" data-scroll-target="#chi-squared-examples-1"><span class="header-section-number">38.14</span> Chi-Squared Examples</a></li>
+  <li><a href="#variance-inferences" id="toc-variance-inferences" class="nav-link" data-scroll-target="#variance-inferences"><span class="header-section-number">38.15</span> Variance Inferences</a></li>
+  <li><a href="#sampling-distribution" id="toc-sampling-distribution" class="nav-link" data-scroll-target="#sampling-distribution"><span class="header-section-number">38.16</span> Sampling Distribution</a></li>
+  <li><a href="#interval-estimation---variance" id="toc-interval-estimation---variance" class="nav-link" data-scroll-target="#interval-estimation---variance"><span class="header-section-number">38.17</span> Interval Estimation - Variance</a></li>
+  <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example"><span class="header-section-number">38.18</span> Example</a></li>
+  <li><a href="#r-example" id="toc-r-example" class="nav-link" data-scroll-target="#r-example"><span class="header-section-number">38.19</span> R Example</a></li>
+  <li><a href="#hypothesis-testing" id="toc-hypothesis-testing" class="nav-link" data-scroll-target="#hypothesis-testing"><span class="header-section-number">38.20</span> Hypothesis Testing</a></li>
+  <li><a href="#r-example-1" id="toc-r-example-1" class="nav-link" data-scroll-target="#r-example-1"><span class="header-section-number">38.21</span> R Example</a></li>
+  <li><a href="#two-population-variances" id="toc-two-population-variances" class="nav-link" data-scroll-target="#two-population-variances"><span class="header-section-number">38.22</span> Two Population Variances</a></li>
+  <li><a href="#f-test-example" id="toc-f-test-example" class="nav-link" data-scroll-target="#f-test-example"><span class="header-section-number">38.23</span> F Test Example</a></li>
+  <li><a href="#wrapping-up" id="toc-wrapping-up" class="nav-link" data-scroll-target="#wrapping-up"><span class="header-section-number">38.24</span> Wrapping Up</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./mod-8-0-overview.html">Inference</a></li><li class="breadcrumb-item"><a href="./mod-8-3-variance.html"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Hypothesis Testing: Variance</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">38</span>&nbsp; <span class="chapter-title">Hypothesis Testing: Variance</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="difference-in-means" class="level2" data-number="38.1">
+<h2 data-number="38.1" class="anchored" data-anchor-id="difference-in-means"><span class="header-section-number">38.1</span> Difference in Means</h2>
+<p>Let <span class="math inline">\(\mu_1\)</span> denote the mean of population 1.</p>
+<p>let <span class="math inline">\(\mu_2\)</span> denote the mean of population 2.</p>
+<p>Assume that we have two <strong>independent random samples</strong> that produce <span class="math inline">\(\bar{x_1}\)</span> and <span class="math inline">\(\bar{x_2}\)</span>.</p>
+<p>The point estimator for the difference between <span class="math inline">\(\mu_1\)</span> and <span class="math inline">\(\mu_2\)</span> is:</p>
+<p><span class="math display">\[\bar{x}_1- \bar{x}_2\]</span></p>
+<p>If <span class="math inline">\(\sigma_1^2\)</span> and <span class="math inline">\(\sigma_2^2\)</span> are known, the standard error of the point estimator is:</p>
+<p><span class="math display">\[\sigma(\bar{x}_1 -\bar{x}_2) = \sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}\]</span> The interval estimate for the difference between two population means when the population variances are known:</p>
+<p><span class="math display">\[(\bar{x}_1 - \bar{x}_2) \pm z_{\alpha/2} \times \sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}\]</span></p>
+</section>
+<section id="difference-example" class="level2" data-number="38.2">
+<h2 data-number="38.2" class="anchored" data-anchor-id="difference-example"><span class="header-section-number">38.2</span> Difference Example</h2>
+<p>We know that <span class="math inline">\(\sigma_1 = 3\)</span> and <span class="math inline">\(\sigma_2 = 6\)</span></p>
+<p>Assume we sample the populations independently and randomly by taking 200 observations from each population.</p>
+<p>We can construct the point estimate of the difference of the population means.</p>
+<p>We can also construct the interval estimate (or margin of error) around this point estimate.</p>
+<p>We specify that <span class="math inline">\(\alpha = 0.05\)</span>.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>pop_1 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">10000</span>, <span class="at">mean =</span> <span class="fl">50.5</span>, <span class="at">sd =</span> <span class="dv">3</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>pop_2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">5000</span>, <span class="at">mean =</span> <span class="fl">47.5</span>, <span class="at">sd =</span> <span class="dv">6</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>xbar_1 <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">sample</span>(pop_1, <span class="dv">500</span>))</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>xbar_2 <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">sample</span>(pop_2, <span class="dv">200</span>))</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>diff <span class="ot">&lt;-</span> xbar_1 <span class="sc">-</span> xbar_2</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>std_err <span class="ot">&lt;-</span> <span class="fu">sqrt</span>((<span class="dv">9</span><span class="sc">/</span><span class="dv">500</span>) <span class="sc">+</span> (<span class="dv">36</span><span class="sc">/</span><span class="dv">200</span>))</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>interval <span class="ot">=</span> xbar_1 <span class="sc">-</span> xbar_2</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>moe <span class="ot">=</span> <span class="fu">qnorm</span>(.<span class="dv">975</span>,<span class="dv">0</span>,<span class="dv">1</span>)<span class="sc">*</span>std_err</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>int_lower <span class="ot">=</span> interval <span class="sc">-</span> <span class="fu">qnorm</span>(.<span class="dv">975</span>,<span class="dv">0</span>,<span class="dv">1</span>)<span class="sc">*</span>std_err</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>int_upper <span class="ot">=</span> interval <span class="sc">+</span> <span class="fu">qnorm</span>(.<span class="dv">975</span>,<span class="dv">0</span>,<span class="dv">1</span>)<span class="sc">*</span>std_err</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>means <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(xbar_1, xbar_2, diff, std_err,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>                    moe, int_lower, int_upper)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(means,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"ccccccc"</span>,</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"Interval Estimation"</span>,</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Xbar(1)"</span>, <span class="st">"Xbar(2)"</span>, </span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Xbar(1)-Xbar(2)"</span>,</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Std. Error"</span>, <span class="st">"MOE"</span>, </span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Lower Bound"</span>, <span class="st">"Upper Bound"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>Interval Estimation</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(1)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(2)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(1)-Xbar(2)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Std. Error</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">MOE</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Lower Bound</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Upper Bound</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">50.29403</td>
+<td style="text-align: center;">46.79043</td>
+<td style="text-align: center;">3.503592</td>
+<td style="text-align: center;">0.4449719</td>
+<td style="text-align: center;">0.8721289</td>
+<td style="text-align: center;">2.631464</td>
+<td style="text-align: center;">4.375721</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="difference-in-means-1" class="level2" data-number="38.3">
+<h2 data-number="38.3" class="anchored" data-anchor-id="difference-in-means-1"><span class="header-section-number">38.3</span> Difference in Means</h2>
+<p>Let <span class="math inline">\(n_1\)</span> and <span class="math inline">\(n_2\)</span> be samples used to estimate <span class="math inline">\(\bar{x}_1\)</span> and <span class="math inline">\(\bar{x}_2\)</span> and <span class="math inline">\(\sigma_1\)</span> and <span class="math inline">\(\sigma_2\)</span> are the population standard deviations for the two independent random samples.</p>
+<p>Let <span class="math inline">\(D_0 = \mu_1 - \mu_2\)</span> be the hypothesized difference between the population means under <span class="math inline">\(H_0\)</span>.</p>
+<p>The test-statistic for testing hypotheses regarding the difference between two population means when <span class="math inline">\(\sigma_1\)</span> and <span class="math inline">\(\sigma_2\)</span> are known is:</p>
+<p><span class="math display">\[z = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}}\]</span></p>
+<p>Given a level of significance, <span class="math inline">\(\alpha\)</span>, we can obtain the <strong>critical value(s)</strong> of the test statistic.</p>
+<p>If it is a one-tailed test, then we use <span class="math inline">\(\alpha\)</span> to obtain the test statistic.</p>
+<p>If it is a two-tailed test, then we use <span class="math inline">\(\alpha/2\)</span> to obtain the test statistic.</p>
+</section>
+<section id="difference-example-1" class="level2" data-number="38.4">
+<h2 data-number="38.4" class="anchored" data-anchor-id="difference-example-1"><span class="header-section-number">38.4</span> Difference Example</h2>
+<p>Consider the following hypothesis test with <span class="math inline">\(\alpha = 0.05\)</span>.</p>
+<p><span class="math display">\[H_0: \mu_1 - \mu_2 = 0\]</span></p>
+<p><span class="math display">\[H_a: \mu_1 - \mu_2 \ne 0\]</span></p>
+<p>Let <span class="math inline">\(n_1 = 50\)</span>, <span class="math inline">\(\bar{x}_1 = 19.4\)</span>, <span class="math inline">\(\sigma_1 = 2\)</span> and <span class="math inline">\(n_2 = 25\)</span>, <span class="math inline">\(\bar{x}_2 = 20.5\)</span>, <span class="math inline">\(\sigma_2 = 4\)</span>.</p>
+<p><span class="math display">\[z = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}} = \frac{(19.4 - 20.5) - 0}{\sqrt{\frac{2^2}{50} + \frac{4^2}{25}}} = \frac{-1.1}{0.8485} = -1.2964\]</span></p>
+<p>For a two-tailed test, the critical value of the test statistic is <span class="math inline">\(z_c =\)</span> -1.959964.</p>
+<p>We fail to reject <span class="math inline">\(H_0\)</span> at the 5% level of statistical significance as</p>
+<p><span class="math display">\[z = -1.2964 &gt; -1.96 = z_c\]</span></p>
+<p>We can use <strong>pnorm</strong> as <span class="math inline">\(P(z \le -1.2964) = 0.0974\)</span> and fail to reject <span class="math inline">\(H_0\)</span> since:</p>
+<p><span class="math display">\[P(z \le -1.2964) = 0.0974 &gt; 0.025 = P(z &lt; -1.96)\]</span></p>
+</section>
+<section id="difference-example-2" class="level2" data-number="38.5">
+<h2 data-number="38.5" class="anchored" data-anchor-id="difference-example-2"><span class="header-section-number">38.5</span> Difference Example</h2>
+<p>Consider the following hypothesis test with <span class="math inline">\(\alpha = 0.01\)</span>.</p>
+<p><span class="math display">\[H_0: \mu_1 - \mu_2 \ge 0\]</span></p>
+<p><span class="math display">\[H_a: \mu_1 - \mu_2 \le 0\]</span></p>
+<p>Let <span class="math inline">\(n_1 = 25\)</span>, <span class="math inline">\(\bar{x}_1 = 18.4\)</span>, <span class="math inline">\(\sigma_1 = 4\)</span> and <span class="math inline">\(n_2 = 50\)</span>, <span class="math inline">\(\bar{x}_2 = 20.8\)</span>, <span class="math inline">\(\sigma_2 = 3\)</span>.</p>
+<p><span class="math display">\[z = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}} = \frac{(18.4 - 20.8) - 0}{\sqrt{\frac{4^2}{25} + \frac{3^2}{50}}} = \frac{-2.4}{0.9055} = -2.6504\]</span></p>
+<p>For a one-tailed test, the critical value of the test statistic is -2.3264.</p>
+<p>We reject <span class="math inline">\(H_0\)</span> at the 1% level of statistical significance as</p>
+<p><span class="math display">\[z = -2.6504 &lt; -2.3264 = z_c\]</span></p>
+<p>We can use <strong>pnorm</strong> as <span class="math inline">\(P(z \le -2.6504)\)</span> and reject <span class="math inline">\(H_0\)</span> since:</p>
+<p><span class="math display">\[P(z \le -2.6504) = 0.004 &lt; 0.01 = P(z &lt; -2.3264)\]</span></p>
+</section>
+<section id="unknown-variance" class="level2" data-number="38.6">
+<h2 data-number="38.6" class="anchored" data-anchor-id="unknown-variance"><span class="header-section-number">38.6</span> Unknown Variance</h2>
+<p>Let <span class="math inline">\(n_1\)</span> and <span class="math inline">\(n_2\)</span> be samples used to estimate <span class="math inline">\(\bar{x}_1\)</span> and <span class="math inline">\(\bar{x}_2\)</span>. The population standard deviations for the two independent random samples are unknown.</p>
+<p>We assume that <span class="math inline">\(s_1\)</span> and <span class="math inline">\(s_2\)</span> are unbiased estimators of the population standard deviations.</p>
+<p>Let <span class="math inline">\(D_0 = \mu_1 - \mu_2\)</span> be the hypothesized difference between the population means under <span class="math inline">\(H_o\)</span>.</p>
+<p>The test-statistic for testing hypotheses regarding the difference between two population means when <span class="math inline">\(\sigma\)</span> is unknown is:</p>
+<p><span class="math display">\[t = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}\]</span></p>
+<p>Given a level of significance, <span class="math inline">\(\alpha\)</span>, we can obtain the <strong>critical value</strong> of the test statistic.</p>
+<p>If it is a one-tailed test, then we use <span class="math inline">\(\alpha\)</span> to obtain the test statistic.</p>
+<p>If it is a two-tailed test, then we use <span class="math inline">\(\alpha/2\)</span> to obtain the test statistic.</p>
+</section>
+<section id="hypothesis-test-in-r" class="level2" data-number="38.7">
+<h2 data-number="38.7" class="anchored" data-anchor-id="hypothesis-test-in-r"><span class="header-section-number">38.7</span> Hypothesis Test in R</h2>
+<p>Assume that we observe pressure readings for two pipes which are independent of each other.</p>
+<p>We want to know whether the mean pressure readings for pipes are different.</p>
+<p>We do not observe <span class="math inline">\(\sigma_1\)</span> or <span class="math inline">\(\sigma_2\)</span>.</p>
+<p>We can use the <strong>t.test</strong> function in R.</p>
+<p>We find that <span class="math inline">\(t = -0.14751\)</span>.</p>
+<p>We fail to reject the null hypothesis that the population means are equal.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>pressure_1 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">110</span>, <span class="dv">132</span>, <span class="dv">138</span>, <span class="dv">98</span>, <span class="dv">122</span>, <span class="dv">190</span>, <span class="dv">92</span>, <span class="dv">105</span>, <span class="dv">104</span>, <span class="dv">148</span>, </span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>              <span class="dv">83</span>, <span class="dv">193</span>, <span class="dv">132</span>, <span class="dv">114</span>, <span class="dv">192</span>, <span class="dv">183</span>, <span class="dv">100</span>, <span class="dv">99</span>, <span class="dv">111</span>, <span class="dv">123</span>, </span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>              <span class="dv">130</span>, <span class="dv">194</span>, <span class="dv">141</span>, <span class="dv">138</span>, <span class="dv">98</span>, <span class="dv">94</span>, <span class="dv">97</span>, <span class="dv">128</span>, <span class="dv">105</span>, <span class="dv">108</span>, </span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>              <span class="dv">193</span>, <span class="dv">85</span>, <span class="dv">80</span>, <span class="dv">132</span>, <span class="dv">134</span>, <span class="dv">148</span>, <span class="dv">192</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>pressure_2 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">140</span>, <span class="dv">112</span>, <span class="dv">98</span>, <span class="dv">98</span>, <span class="dv">192</span>, <span class="dv">190</span>, <span class="dv">93</span>, <span class="dv">125</span>, <span class="dv">144</span>, <span class="dv">146</span>, </span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>              <span class="dv">87</span>, <span class="dv">195</span>, <span class="dv">112</span>, <span class="dv">124</span>, <span class="dv">132</span>, <span class="dv">185</span>, <span class="dv">102</span>, <span class="dv">139</span>, <span class="dv">101</span>, <span class="dv">125</span>, </span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>              <span class="dv">123</span>, <span class="dv">144</span>, <span class="dv">123</span>, <span class="dv">108</span>, <span class="dv">128</span>, <span class="dv">114</span>, <span class="dv">107</span>, <span class="dv">134</span>, <span class="dv">115</span>, <span class="dv">88</span>, </span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>              <span class="dv">143</span>, <span class="dv">124</span>, <span class="dv">120</span>, <span class="dv">135</span>, <span class="dv">121</span>, <span class="dv">168</span>, <span class="dv">172</span>)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Manual T-Test, H0: mu(1)-mu(2) = 0</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>xbar_1 <span class="ot">&lt;-</span> <span class="fu">mean</span>(pressure_1)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>xbar_2 <span class="ot">&lt;-</span> <span class="fu">mean</span>(pressure_2)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>diff <span class="ot">&lt;-</span> xbar_1 <span class="sc">-</span> xbar_2 <span class="sc">-</span> <span class="dv">0</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>denom <span class="ot">&lt;-</span> <span class="fu">sqrt</span>((<span class="fu">var</span>(pressure_1)<span class="sc">/</span><span class="fu">length</span>(pressure_1)) <span class="sc">+</span> </span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>                (<span class="fu">var</span>(pressure_2)<span class="sc">/</span><span class="fu">length</span>(pressure_2)))</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>t_man <span class="ot">&lt;-</span> diff<span class="sc">/</span>denom</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Generated T-Test</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>t_calc <span class="ot">&lt;-</span> <span class="fu">t.test</span>(pressure_1, pressure_2, <span class="at">mu =</span> <span class="dv">0</span>)</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>means <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(xbar_1, xbar_2, diff, </span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>                    t_man, t_calc<span class="sc">$</span>statistic, </span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>                    t_calc<span class="sc">$</span>parameter, t_calc<span class="sc">$</span>p.value)</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(means,</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"ccccccc"</span>,</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"Hypothesis Testing"</span>,</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Xbar(1)"</span>, <span class="st">"Xbar(2)"</span>, </span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Xbar(1)-Xbar(2)"</span>,</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"T-Manual"</span>, <span class="st">"T-Calculated"</span>, </span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Degrees Freedom"</span>, <span class="st">"P-Value"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>Hypothesis Testing</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th"></th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(1)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(2)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(1)-Xbar(2)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">T-Manual</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">T-Calculated</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Degrees Freedom</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P-Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">t</td>
+<td style="text-align: center;">128.8108</td>
+<td style="text-align: center;">129.9189</td>
+<td style="text-align: center;">-1.108108</td>
+<td style="text-align: center;">-0.1475103</td>
+<td style="text-align: center;">-0.1475103</td>
+<td style="text-align: center;">69.28732</td>
+<td style="text-align: center;">0.8831577</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="hypothesis-test-in-r-1" class="level2" data-number="38.8">
+<h2 data-number="38.8" class="anchored" data-anchor-id="hypothesis-test-in-r-1"><span class="header-section-number">38.8</span> Hypothesis Test in R</h2>
+<p>Assume that we observe pressure readings for two pipes which are independent of each other.</p>
+<p>We want to know whether <span class="math inline">\(\mu_1 - \mu_2 &gt; 0\)</span>.</p>
+<p>We do not observe <span class="math inline">\(\sigma_1\)</span> or <span class="math inline">\(\sigma_2\)</span>.</p>
+<p>We can use the <strong>t.test</strong> function in R.</p>
+<p>We find that <span class="math inline">\(t = 3.75\)</span> and <span class="math inline">\(P(t &lt; T_c) = 0.0003\)</span>.</p>
+<p>We reject the null hypothesis that <span class="math inline">\(\mu_1 - \mu_2 \le 0\)</span> at the 1% level of statistical significance.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>pressure_3 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">210</span>, <span class="dv">32</span>, <span class="dv">238</span>, <span class="dv">198</span>, <span class="dv">322</span>, <span class="dv">290</span>, <span class="dv">192</span>, <span class="dv">105</span>, <span class="dv">204</span>, <span class="dv">248</span>, </span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>              <span class="dv">83</span>, <span class="dv">103</span>, <span class="dv">232</span>, <span class="dv">114</span>, <span class="dv">192</span>, <span class="dv">283</span>, <span class="dv">200</span>, <span class="dv">99</span>, <span class="dv">111</span>, <span class="dv">193</span>, </span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>              <span class="dv">150</span>, <span class="dv">94</span>, <span class="dv">241</span>, <span class="dv">238</span>, <span class="dv">198</span>, <span class="dv">194</span>, <span class="dv">197</span>, <span class="dv">128</span>, <span class="dv">215</span>, <span class="dv">108</span>, </span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>              <span class="dv">133</span>, <span class="dv">185</span>, <span class="dv">180</span>, <span class="dv">141</span>, <span class="dv">234</span>, <span class="dv">48</span>, <span class="dv">92</span>, <span class="dv">281</span>, <span class="dv">47</span>, <span class="dv">290</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>pressure_4 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">140</span>, <span class="dv">112</span>, <span class="dv">98</span>, <span class="dv">98</span>, <span class="dv">192</span>, <span class="dv">190</span>, <span class="dv">93</span>, <span class="dv">125</span>, <span class="dv">144</span>, <span class="dv">146</span>, </span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>              <span class="dv">87</span>, <span class="dv">195</span>, <span class="dv">112</span>, <span class="dv">124</span>, <span class="dv">132</span>, <span class="dv">185</span>, <span class="dv">102</span>, <span class="dv">139</span>, <span class="dv">101</span>, <span class="dv">125</span>, </span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>              <span class="dv">123</span>, <span class="dv">144</span>, <span class="dv">123</span>, <span class="dv">108</span>, <span class="dv">128</span>, <span class="dv">114</span>, <span class="dv">107</span>, <span class="dv">134</span>, <span class="dv">115</span>, <span class="dv">88</span>, </span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>              <span class="dv">143</span>, <span class="dv">124</span>, <span class="dv">120</span>, <span class="dv">135</span>, <span class="dv">121</span>, <span class="dv">168</span>, <span class="dv">172</span>, <span class="dv">129</span>, <span class="dv">103</span>)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Manual T-Test, H0: mu(1)-mu(2) &gt; 0</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>xbar_3 <span class="ot">&lt;-</span> <span class="fu">mean</span>(pressure_3)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>xbar_4 <span class="ot">&lt;-</span> <span class="fu">mean</span>(pressure_4)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>diff <span class="ot">&lt;-</span> xbar_3 <span class="sc">-</span> xbar_4 <span class="sc">-</span> <span class="dv">0</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>denom <span class="ot">&lt;-</span> <span class="fu">sqrt</span>((<span class="fu">var</span>(pressure_3)<span class="sc">/</span><span class="fu">length</span>(pressure_3)) <span class="sc">+</span> </span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>                (<span class="fu">var</span>(pressure_4)<span class="sc">/</span><span class="fu">length</span>(pressure_4)))</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>t_man <span class="ot">&lt;-</span> diff<span class="sc">/</span>denom</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Generated T-Test</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>t_calc <span class="ot">&lt;-</span> <span class="fu">t.test</span>(pressure_3, pressure_4, </span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>                 <span class="at">alternative =</span> <span class="st">"greater"</span>, <span class="at">mu =</span> <span class="dv">0</span>)</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>means <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(xbar_3, xbar_4, diff, </span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>                    t_man, t_calc<span class="sc">$</span>statistic, </span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>                    t_calc<span class="sc">$</span>parameter, t_calc<span class="sc">$</span>p.value)</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(means,</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"ccccccc"</span>,</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"Hypothesis Testing"</span>,</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Xbar(1)"</span>, <span class="st">"Xbar(2)"</span>, </span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Xbar(1)-Xbar(2)"</span>,</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"T-Manual"</span>, <span class="st">"T-Calculated"</span>, </span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Degrees Freedom"</span>, <span class="st">"P-Value"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>Hypothesis Testing</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th"></th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(1)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(2)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar(1)-Xbar(2)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">T-Manual</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">T-Calculated</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Degrees Freedom</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P-Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">t</td>
+<td style="text-align: center;">176.075</td>
+<td style="text-align: center;">129.2051</td>
+<td style="text-align: center;">46.86987</td>
+<td style="text-align: center;">3.749521</td>
+<td style="text-align: center;">3.749521</td>
+<td style="text-align: center;">50.68183</td>
+<td style="text-align: center;">0.0002278</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="chi-squared-distribution" class="level2" data-number="38.9">
+<h2 data-number="38.9" class="anchored" data-anchor-id="chi-squared-distribution"><span class="header-section-number">38.9</span> Chi-Squared Distribution</h2>
+<p>Let <span class="math inline">\(x_1, x_2, \dots, x_n\)</span> be <span class="math inline">\(n\)</span> identically and independently distributed random variables such that <span class="math inline">\(x_i \sim N(\mu,\sigma)\)</span>.</p>
+<p>Let <span class="math inline">\(\sigma_1, \sigma_2, \dots, \sigma_n\)</span> be the standard deviations of <span class="math inline">\(x_1, x_2, \dots, x_n\)</span>.</p>
+<p>Consider the following two measures about the sample data and its relationship with the population parameters:</p>
+<p><span class="math display">\[R = \sum_{i=1}^n \frac{(x_i - \mu)}{\sigma_i} \sim N(0,1)\]</span></p>
+<p><span class="math display">\[V = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma_i^2} \sim \chi^2(k)\]</span></p>
+<p><strong>R</strong> is the sum of <span class="math inline">\(n\)</span> standard normal variables and is distributed normally.</p>
+<p><strong>V</strong> is the sum of <span class="math inline">\(n\)</span> squared standard normal variables and is distributed <span class="math inline">\(\chi^2\)</span> with <span class="math inline">\(k\)</span> degrees of freedom.</p>
+</section>
+<section id="chi-square-distribution" class="level2" data-number="38.10">
+<h2 data-number="38.10" class="anchored" data-anchor-id="chi-square-distribution"><span class="header-section-number">38.10</span> Chi-Square Distribution</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">10</span>, <span class="dv">10</span>)), </span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>       <span class="fu">aes</span>(<span class="at">x =</span> x)) <span class="sc">+</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_function</span>(<span class="at">fun =</span> dchisq, </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>              <span class="at">args =</span> <span class="fu">list</span>(<span class="at">df =</span> <span class="dv">1</span>),</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>              <span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_function</span>(<span class="at">fun =</span> dnorm, </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>              <span class="at">args =</span> <span class="fu">list</span>(<span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>),</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>              <span class="at">linewidth =</span> <span class="fl">1.2</span>,</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>              <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"x"</span>,</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>     <span class="at">y =</span> <span class="st">"P(x)"</span>,</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>     <span class="at">title =</span> <span class="st">"Standard Normal and Chi-Squared Distribution"</span>,</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>     <span class="at">subtitle =</span> <span class="st">"1 degree of freedom"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="mod-8-3-variance_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="fu">data.frame</span>(<span class="at">x =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">30</span>, <span class="dv">30</span>)), </span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>       <span class="fu">aes</span>(<span class="at">x =</span> x)) <span class="sc">+</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_function</span>(<span class="at">fun =</span> dchisq, </span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>              <span class="at">args =</span> <span class="fu">list</span>(<span class="at">df =</span> <span class="dv">10</span>),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>              <span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_function</span>(<span class="at">fun =</span> dnorm, </span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>              <span class="at">args =</span> <span class="fu">list</span>(<span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>),</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">linewidth =</span> <span class="fl">1.2</span>,</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>              <span class="at">color =</span> <span class="st">"red"</span>) <span class="sc">+</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"x"</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>     <span class="at">y =</span> <span class="st">"P(x)"</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>     <span class="at">title =</span> <span class="st">"Chi-Squared Distribution"</span>,</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>     <span class="at">subtitle =</span> <span class="st">"10 degrees of freedom"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="mod-8-3-variance_files/figure-html/unnamed-chunk-5-1.png" style="width:75.0%;height:75.0%" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="chi-squared-distributions" class="level2" data-number="38.11">
+<h2 data-number="38.11" class="anchored" data-anchor-id="chi-squared-distributions"><span class="header-section-number">38.11</span> Chi-Squared Distributions</h2>
+<p>Let <span class="math inline">\(x\)</span> be the value of <strong>V</strong> for which we seek the probability or:</p>
+<p><span class="math display">\[V = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma_i^2} \sim \chi^2\]</span></p>
+<p>The probability density function of the <span class="math inline">\(\chi^2\)</span> distribution is:</p>
+<p><span class="math display">\[f(x;k) = \frac{1}{2^{(k/2)} \, \Gamma(k/2)} x^{(k/2)-1} e^{-x/2}, \quad 0 \le \chi^2 \le 1\]</span></p>
+<p>Where <span class="math inline">\(\Gamma\)</span> is the Gamma function and</p>
+<p><span class="math display">\[\Gamma(z) = \int_{0}^{\infty} x^{z-1} \, e^{-x} dx, \quad x &gt; 0\]</span></p>
+<p><span class="math display">\[\Gamma(n) = (n-1)! \quad \text{for any positive integer} \, n\]</span></p>
+</section>
+<section id="chi-squared-properties" class="level2" data-number="38.12">
+<h2 data-number="38.12" class="anchored" data-anchor-id="chi-squared-properties"><span class="header-section-number">38.12</span> Chi-Squared Properties</h2>
+<p>Given <span class="math inline">\(x_1, x_2, \dots, x_n\)</span> random variables with <span class="math inline">\(x_i \sim N(0,\sigma^2)\)</span>, then</p>
+<p><span class="math display">\[V = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma_i^2} \sim \chi^2(k)\]</span></p>
+<p>Given <span class="math inline">\(n\)</span> and <span class="math inline">\(k = n-1\)</span>, then the mean of <span class="math inline">\(\chi^2(k)\)</span> is:</p>
+<p><span class="math display">\[\mu(\chi^2) = k\]</span></p>
+<p>The variance and standard deviation of <span class="math inline">\(\chi^2(k)\)</span> is:</p>
+<p><span class="math display">\[var(\chi^2) = 2 \times k\]</span></p>
+<p><span class="math display">\[sd(\chi^2) = \sqrt{2 \times df}\]</span></p>
+<p>The <span class="math inline">\(\chi^2\)</span> distribution is non-symmetrical and skewed right.</p>
+<p>There is a different <span class="math inline">\(\chi^2\)</span> curve for each degree of freedom <span class="math inline">\(k\)</span>.</p>
+</section>
+<section id="chi-squared-examples" class="level2" data-number="38.13">
+<h2 data-number="38.13" class="anchored" data-anchor-id="chi-squared-examples"><span class="header-section-number">38.13</span> Chi-Squared Examples</h2>
+<p>Let <span class="math inline">\(Y\)</span> have a chi-square distribution with 15 degrees of freedom.</p>
+<p>What is <span class="math inline">\(P(Y \le y_0) = 0.025\)</span>?</p>
+<p>What is <span class="math inline">\(P(Y \ge y_0) = 0.05\)</span>?</p>
+<p>What is <span class="math inline">\(P(Y \le 15.23)\)</span>?</p>
+<p>What is <span class="math inline">\(P(Y \ge 22.307)\)</span>?</p>
+<p>We can use the <span class="math inline">\(\chi^2\)</span> tables.</p>
+<p><strong>pchisq</strong> is the CDF for <span class="math inline">\(\chi^2\)</span> in R</p>
+<p><strong>qchisq</strong> is the inverse CDF in R</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>k <span class="ot">=</span> <span class="dv">15</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co">#P(Y &lt; y0) = 0.025</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co">#Lower.tail = TRUE since area to left of y_0</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>q_1 <span class="ot">&lt;-</span> <span class="fu">qchisq</span>(<span class="fl">0.025</span>, <span class="dv">15</span>, <span class="at">lower.tail =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co">#P(Y &gt; y0) = 0.05</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="co">#Lower.tail = FALSE since area to left of y_0</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>q_2 <span class="ot">&lt;-</span> <span class="fu">qchisq</span>(<span class="fl">0.05</span>, <span class="dv">15</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="co">#P(Y &lt; 15.23) = p</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="co">#Lower.tail since area of the left of 15.23</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>q_3 <span class="ot">&lt;-</span> <span class="fu">pchisq</span>(<span class="fl">15.23</span>, <span class="dv">15</span>, <span class="at">lower.tail =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="co">#P(Y &gt; 22.307) = p</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>q_4 <span class="ot">&lt;-</span> <span class="fu">pchisq</span>(<span class="fl">23.307</span>, <span class="dv">15</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>qchi <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(k, q_1, q_2, q_3, q_4)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(qchi,</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"ccccc"</span>,</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"Chi-Squared Examples"</span>,</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"k"</span>, <span class="st">"P(y &lt; y0) = 0.025"</span>, </span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"P(y &gt; y0) = 0.05"</span>,</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"P(y &lt; 15.23)"</span>, <span class="st">"P(y &gt; 23.307)"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>Chi-Squared Examples</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">k</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(y &lt; y0) = 0.025</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(y &gt; y0) = 0.05</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(y &lt; 15.23)</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(y &gt; 23.307)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">15</td>
+<td style="text-align: center;">6.262138</td>
+<td style="text-align: center;">24.99579</td>
+<td style="text-align: center;">0.5650197</td>
+<td style="text-align: center;">0.0778356</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="chi-squared-examples-1" class="level2" data-number="38.14">
+<h2 data-number="38.14" class="anchored" data-anchor-id="chi-squared-examples-1"><span class="header-section-number">38.14</span> Chi-Squared Examples</h2>
+<p>Typically <span class="math inline">\(\chi^2_{\alpha}\)</span> denotes the value for the <span class="math inline">\(\chi^2\)</span> distribution that provides an area or probability of <span class="math inline">\(\alpha\)</span> to the <strong>right</strong> of the <span class="math inline">\(\chi^2_\alpha\)</span> value.</p>
+<p>Let <span class="math inline">\(X\)</span> have a chi-square distribution with 19 degrees of freedom.</p>
+<p>What is <span class="math inline">\(P(X \ge x_0) = 0.025\)</span>?</p>
+<p>In other words, what <span class="math inline">\(\chi^2\)</span> value is such that 2.5% of the observations lie to the <strong>right</strong> of it?</p>
+<p>What is <span class="math inline">\(P(X \ge x_0) = 0.95\)</span>?</p>
+<p>In other words, what <span class="math inline">\(\chi^2\)</span> value is such that 95% of the observations lie to the <strong>right</strong> of it?</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>alpha_1 <span class="ot">=</span> <span class="fl">0.025</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>alpha_2 <span class="ot">=</span> <span class="fl">0.95</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>df_1 <span class="ot">=</span> <span class="dv">19</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co">#Obtain chi-squared value for which 2.5% of obs lie to the right</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co">#Use alpha and lower.tail = FALSE </span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co">#Use (1-alpha) and lower.tail = TRUE</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>q_5 <span class="ot">&lt;-</span> <span class="fu">qchisq</span>(alpha_1, df_1, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>q_6 <span class="ot">&lt;-</span> <span class="fu">qchisq</span>(<span class="dv">1</span><span class="sc">-</span>alpha_1, df_1, <span class="at">lower.tail =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="co">#Obtain chi-squared value for which 95% of obs lie to the right</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co">#Use alpha and lower.tail = FALSE </span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="co">#Use (1-alpha) and lower.tail = TRUE</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>q_7 <span class="ot">&lt;-</span> <span class="fu">qchisq</span>(alpha_2, df_1, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>q_8 <span class="ot">&lt;-</span> <span class="fu">qchisq</span>(<span class="dv">1</span><span class="sc">-</span>alpha_2, df_1, <span class="at">lower.tail =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>qchi2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(df_1, q_5, q_6, q_7, q_8)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(qchi2,</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"ccccc"</span>,</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"Chi-Squared Examples"</span>,</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"k"</span>, <span class="st">"P(X &gt; x0) = 0.025"</span>, </span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"P(X &lt; x0) = 0.975"</span>,</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"P(X &gt; x0) = 0.95"</span>, <span class="st">"P(X &lt; x0) = 0.05"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>Chi-Squared Examples</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">k</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(X &gt; x0) = 0.025</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(X &lt; x0) = 0.975</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(X &gt; x0) = 0.95</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(X &lt; x0) = 0.05</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">19</td>
+<td style="text-align: center;">32.85233</td>
+<td style="text-align: center;">32.85233</td>
+<td style="text-align: center;">10.11701</td>
+<td style="text-align: center;">10.11701</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="variance-inferences" class="level2" data-number="38.15">
+<h2 data-number="38.15" class="anchored" data-anchor-id="variance-inferences"><span class="header-section-number">38.15</span> Variance Inferences</h2>
+<p>Recall that the sample variance <span class="math inline">\(s^2\)</span> is the point estimator of the population variance <span class="math inline">\(\sigma^2\)</span>.</p>
+<p>Recall that the sample variance is equal to:</p>
+<p><span class="math display">\[s^2 = \frac{\sum_{i=1}^n (x_i - \bar{x})^2}{n-1}\]</span></p>
+<p>To make inferences about the population variance, we need to know the sampling distribution of:</p>
+<p><span class="math display">\[\frac{(n-1)s^2}{\sigma^2}\]</span></p>
+<p>We will find that sampling distribution is <span class="math inline">\(\chi^2\)</span> with <span class="math inline">\(k\)</span> degrees of freedom.</p>
+<p>We can use the <span class="math inline">\(\chi^2\)</span> distribution to develop interval estimates and conduct hypothesis tests about a population variance.</p>
+</section>
+<section id="sampling-distribution" class="level2" data-number="38.16">
+<h2 data-number="38.16" class="anchored" data-anchor-id="sampling-distribution"><span class="header-section-number">38.16</span> Sampling Distribution</h2>
+<p>To begin, let <span class="math inline">\(y_i = x_i - \mu\)</span> which implies that <span class="math inline">\(\bar{y} = \bar{x} - \mu\)</span> since <span class="math inline">\(\bar{u} = \mu\)</span> and:</p>
+<p><span class="math display">\[(y_i - \bar{y}) = (x_i - \mu) - (\bar{x} - \mu) = x_i - \mu - \bar{x} + \mu = (x_i - \bar{x})\]</span></p>
+<p>Rearranging <span class="math inline">\(s^2\)</span> yields:</p>
+<p><span class="math display">\[s^2 = \frac{\sum_{i=1}^n (x_i - \bar{x})^2}{n-1}\]</span></p>
+<p><span class="math display">\[(n-1) s^2 = \sum_{i=1}^n (x_i - \bar{x})^2 = \sum_{i = 1}^n (y_i - \mu)^2\]</span></p>
+<p><span class="math display">\[(n-1) s^2 = \sum_{i = 1}^n(y_i^2 - 2 y_i \bar{y} + \bar{y}^2) = \sum_{i=1}^n y_i^2 - 2\bar{y}\sum_{i=1}^n Y_i + \sum_{i=1}^n \bar{y}^2\]</span></p>
+<p>Recall that <span class="math inline">\(\sum y_i = n \bar{y}\)</span> and <span class="math inline">\(\sum \bar{y} = n\bar{y}\)</span> so</p>
+<p><span class="math display">\[(n-1) s^2 = \sum_{i=1}^n y_i^2 - (2n \bar{y}  + n \bar{y}^2) = \sum_{i=1}^n y_i^2 - n\bar{y}^2\]</span></p>
+<p>Substituting back <span class="math inline">\(y_i = x_i - \mu\)</span> yields:</p>
+<p><span class="math display">\[(n-1) s^2 = \sum_{i=1}^n (x_i - \mu)^2 - n(\bar{x} - \mu)^2\]</span></p>
+<p>Dividing through by <span class="math inline">\(\sigma^2\)</span> and rearranging</p>
+<p><span class="math display">\[\frac{(n-1) s^2}{\sigma^2} = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma^2} - \frac{n(\bar{x} - \mu)^2}{\sigma^2}\]</span></p>
+<p><span class="math display">\[\sum_{i=1}^n \bigg[\frac{(x_i - \mu)}{\sigma}\bigg]^2 = \frac{(n-1) s^2}{\sigma^2} + \bigg[\frac{(\bar{x} - \mu)}{\sigma/\sqrt{n}}\bigg]^2\]</span></p>
+<p>The left hand side is the sum of the squares of <span class="math inline">\(n\)</span> independent standard normal variables.</p>
+<p>The second term on the right hand side is the square of a single standard normal variable.</p>
+<p>If <span class="math inline">\(s^2\)</span> and <span class="math inline">\(\bar{x}\)</span> are independent, then the first term on the right hand side must have the same distribution as the left hand side.</p>
+<p>Each term thus has the same distribution: <span class="math inline">\(\chi^2\)</span> with <span class="math inline">\(k\)</span> degrees of freedom.</p>
+</section>
+<section id="interval-estimation---variance" class="level2" data-number="38.17">
+<h2 data-number="38.17" class="anchored" data-anchor-id="interval-estimation---variance"><span class="header-section-number">38.17</span> Interval Estimation - Variance</h2>
+<p>Given that</p>
+<p><span class="math display">\[\frac{(n-1) s^2}{\sigma^2} \sim \chi^2(k)\]</span></p>
+<p>Given <span class="math inline">\(\alpha\)</span>, we can find the interval in which <span class="math inline">\(\alpha\)</span> of <span class="math inline">\((n-1)s^2/ \sigma^2\)</span> lie or:</p>
+<p><span class="math display">\[\chi_{\alpha/2}^2 \le \frac{(n-1) s^2}{\sigma^2} \le \chi_{(1-\alpha/2)}^2\]</span></p>
+<p>Rearranging, we obtain the confidence interval estimate for <span class="math inline">\(\sigma^2\)</span> or:</p>
+<p><span class="math display">\[\frac{(n-1)s^2}{\chi_{\alpha/2}^2} \le \sigma^2 \le \frac{(n-1)s^2}{\chi_{(1-\alpha/2)}^2}\]</span></p>
+<p>The <span class="math inline">\(\chi^2\)</span> values are based on a <span class="math inline">\(\chi^2\)</span> distribution with <span class="math inline">\(k\)</span> degrees of freedom.</p>
+<ul>
+<li><span class="math inline">\((1-\alpha)\)</span> is the confidence coefficient for the interval estimate.</li>
+</ul>
+</section>
+<section id="example" class="level2" data-number="38.18">
+<h2 data-number="38.18" class="anchored" data-anchor-id="example"><span class="header-section-number">38.18</span> Example</h2>
+<p>Assume that we collect a sample of 100 individuals from a population.</p>
+<p>The sample standard deviation of individual income is $200.</p>
+<p>We want to construct a 90% confidence interval for <span class="math inline">\(\sigma^2\)</span> so <span class="math inline">\(\alpha = 0.1\)</span></p>
+<p>There are <span class="math inline">\((n-1) = k = 99\)</span> degrees of freedom for the <span class="math inline">\(\chi^2\)</span> statistic.</p>
+<p><span class="math inline">\(\chi^2_{0.05}(99) =\)</span> 123.2252215</p>
+<p><span class="math inline">\(\chi^2_{0.95}(99) =\)</span> 77.0463319</p>
+<p>The 90% confidence interval is:</p>
+<p><span class="math display">\[\frac{(n-1)s^2}{\chi_{\alpha/2}^2} \le \sigma^2 \le \frac{(n-1)s^2}{\chi_{(1-\alpha/2)}^2}\]</span></p>
+<p><span class="math display">\[\frac{99*40000}{123.23} \le \sigma^2 \le \frac{99*4000}{77.046}\]</span></p>
+<p><span class="math display">\[51397.64 \le \sigma^2 \le 32136.28\]</span></p>
+</section>
+<section id="r-example" class="level2" data-number="38.19">
+<h2 data-number="38.19" class="anchored" data-anchor-id="r-example"><span class="header-section-number">38.19</span> R Example</h2>
+<p>We collect salaries (in millions) on 10 managers.</p>
+<p>The average salary is 1.47 million.</p>
+<p>The sample variance is 0.767 million</p>
+<p>Let <span class="math inline">\(\alpha = 0.05\)</span></p>
+<p>Use <strong>qchisq</strong> to find the <span class="math inline">\(\chi^2\)</span> value for <span class="math inline">\((n-1)\)</span> degrees of freedom at <span class="math inline">\(\alpha/2\)</span> and <span class="math inline">\((1-\alpha/2)\)</span></p>
+<p>95% confidence interval for <span class="math inline">\(\sigma^2\)</span> is [0.363, 2.556]</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>salaries <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">2.2</span>, .<span class="dv">5</span>, <span class="fl">2.4</span>, <span class="fl">2.7</span>, <span class="fl">2.0</span>, <span class="fl">1.5</span>, <span class="fl">1.3</span>, <span class="fl">1.5</span>, .<span class="dv">3</span>, .<span class="dv">3</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>avg_sal <span class="ot">&lt;-</span> <span class="fu">mean</span>(salaries)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>var_sal <span class="ot">&lt;-</span> <span class="fu">var</span>(salaries)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>sd_sal <span class="ot">&lt;-</span> <span class="fu">sd</span>(salaries)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>n <span class="ot">=</span> <span class="fu">length</span>(salaries)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>alpha <span class="ot">=</span> <span class="fl">0.05</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>lower <span class="ot">&lt;-</span> ((n<span class="dv">-1</span>)<span class="sc">*</span>sd_sal<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="fu">qchisq</span>(<span class="dv">1</span><span class="sc">-</span>(alpha<span class="sc">/</span><span class="dv">2</span>), n<span class="dv">-1</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>upper <span class="ot">&lt;-</span> ((n<span class="dv">-1</span>)<span class="sc">*</span>sd_sal<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="fu">qchisq</span>((alpha<span class="sc">/</span><span class="dv">2</span>), n<span class="dv">-1</span>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>vars <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(n, avg_sal, var_sal, alpha, lower, upper)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(vars,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"cccccc"</span>,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"Variance Interval"</span>,</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"n"</span>, <span class="st">"Xbar"</span>, </span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"s^2"</span>,</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"alpha"</span>, <span class="st">"Lower Bound"</span>, </span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Upper Bound"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>Variance Interval</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">n</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">s^2</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">alpha</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Lower Bound</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Upper Bound</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">1.47</td>
+<td style="text-align: center;">0.7667778</td>
+<td style="text-align: center;">0.05</td>
+<td style="text-align: center;">0.3627758</td>
+<td style="text-align: center;">2.555557</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="hypothesis-testing" class="level2" data-number="38.20">
+<h2 data-number="38.20" class="anchored" data-anchor-id="hypothesis-testing"><span class="header-section-number">38.20</span> Hypothesis Testing</h2>
+<p>We obtain a random sample of 29 bus arrivals at a station and <span class="math inline">\(s^2 = 4.2\)</span>.</p>
+<p>Management argues the variance in arrival times is less than 4 minutes or:</p>
+<p><span class="math display">\[Ho: \sigma^2 \ge 4\]</span></p>
+<p><span class="math display">\[Ha: \sigma^2 &lt; 4\]</span></p>
+<p>The test statistic for a hypothesis tests about a population variance is:</p>
+<p><span class="math display">\[\chi^2(k) = \frac{(n-1) \, s^2}{\sigma_0^2}\]</span></p>
+<p><span class="math display">\[\chi^2(28) = \frac{(29 - 1) \, 4.2}{4.0} = 29.4\]</span></p>
+<p>We can use <strong>pchisq</strong> to find <span class="math inline">\(P(X \ge 29.4) =\)</span> 0.3924554</p>
+<p>Since <span class="math inline">\(P(X \ge 29.4) = 0.392\)</span> we fail to reject the null hypothesis that <span class="math inline">\(\sigma \le 4\)</span>.</p>
+<p>There is insufficient empirical evidence to support the argument that the variance of arrival times is less than 4 minutes.</p>
+</section>
+<section id="r-example-1" class="level2" data-number="38.21">
+<h2 data-number="38.21" class="anchored" data-anchor-id="r-example-1"><span class="header-section-number">38.21</span> R Example</h2>
+<p>Using data on manager salaries.</p>
+<p>The average salary is 1.65 million.</p>
+<p>The sample variance is 1.35 million</p>
+<p>Find the 90% confidence interval.</p>
+<p>Test the hypothesis that <span class="math inline">\(\sigma^2 = 1.45\)</span></p>
+<p>90% confidence interval for <span class="math inline">\(\sigma^2\)</span> is [0.85,2.53]</p>
+<p>We fail to reject the null hypothesis that <span class="math inline">\(\sigma^2 = 1.45\)</span></p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>salaries <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">2.2</span>, .<span class="dv">5</span>, <span class="fl">2.4</span>, <span class="fl">2.7</span>, <span class="fl">2.0</span>, <span class="fl">1.5</span>, <span class="fl">1.3</span>, <span class="fl">1.5</span>, .<span class="dv">3</span>, .<span class="dv">3</span>,</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>              <span class="fl">3.5</span>, <span class="fl">1.2</span>, <span class="fl">4.5</span>, <span class="fl">0.2</span>, <span class="fl">1.9</span>, <span class="fl">1.3</span>, <span class="fl">0.9</span>, <span class="fl">0.4</span>, <span class="fl">1.2</span>, <span class="fl">3.1</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>avg_sal <span class="ot">&lt;-</span> <span class="fu">mean</span>(salaries)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>var_sal <span class="ot">&lt;-</span> <span class="fu">var</span>(salaries)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>sd_sal <span class="ot">&lt;-</span> <span class="fu">sd</span>(salaries)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>n <span class="ot">=</span> <span class="fu">length</span>(salaries)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>sigma2_null <span class="ot">=</span> <span class="fl">1.45</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>alpha <span class="ot">=</span> <span class="fl">0.1</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>lower <span class="ot">&lt;-</span> ((n<span class="dv">-1</span>)<span class="sc">*</span>sd_sal<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="fu">qchisq</span>(<span class="dv">1</span><span class="sc">-</span>(alpha<span class="sc">/</span><span class="dv">2</span>), n<span class="dv">-1</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>upper <span class="ot">&lt;-</span> ((n<span class="dv">-1</span>)<span class="sc">*</span>sd_sal<span class="sc">^</span><span class="dv">2</span>) <span class="sc">/</span> <span class="fu">qchisq</span>((alpha<span class="sc">/</span><span class="dv">2</span>), n<span class="dv">-1</span>)</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>chi_test <span class="ot">&lt;-</span> ((n<span class="dv">-1</span>)<span class="sc">*</span>sd_sal<span class="sc">^</span><span class="dv">2</span>)<span class="sc">/</span>sigma2_null</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>chi_p <span class="ot">&lt;-</span> <span class="fu">pchisq</span>(chi_test, n<span class="dv">-1</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>vars <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(n, avg_sal, var_sal, alpha, lower, upper,</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>                   chi_test, chi_p)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(vars,</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"cccccccc"</span>,</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"Variance Interval and Test"</span>,</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"n"</span>, <span class="st">"Xbar"</span>, </span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"s^2"</span>,</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"alpha"</span>, <span class="st">"Lower Bound"</span>, </span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Upper Bound"</span>, <span class="st">"Chi Test"</span>, <span class="st">"P(X &gt; x)"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>Variance Interval and Test</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">n</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Xbar</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">s^2</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">alpha</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Lower Bound</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Upper Bound</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">Chi Test</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(X &gt; x)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">1.645</td>
+<td style="text-align: center;">1.352079</td>
+<td style="text-align: center;">0.1</td>
+<td style="text-align: center;">0.8522393</td>
+<td style="text-align: center;">2.539238</td>
+<td style="text-align: center;">17.7169</td>
+<td style="text-align: center;">0.5414171</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="two-population-variances" class="level2" data-number="38.22">
+<h2 data-number="38.22" class="anchored" data-anchor-id="two-population-variances"><span class="header-section-number">38.22</span> Two Population Variances</h2>
+<p>Whenever independent simple random samples of sizes <span class="math inline">\(n_1\)</span> and <span class="math inline">\(n_2\)</span> are selected for two normal populations with equal variances, the sampling distribution is an <strong>F distribution</strong> with <span class="math inline">\((n_1 - 1)\)</span> degrees of freedom in the numerator and <span class="math inline">\((n_2 - 1)\)</span> degrees of freedom in the denominator.</p>
+<p>Given <span class="math inline">\(s_1^2\)</span> and <span class="math inline">\(s_2^2\)</span> the sampling distribution is:</p>
+<p><span class="math display">\[\frac{s_1^2}{s_2^2} \sim F(n_1 - 1, n_2 - 1)\]</span></p>
+<p>Let <span class="math inline">\(s_1^2\)</span> be the population with the larger sample variance, then the test statistic for the equality of population variances is:</p>
+<p><span class="math display">\[F(n_1-1,n_2-1) = \frac{s_1^2}{s_2^2}\]</span></p>
+</section>
+<section id="f-test-example" class="level2" data-number="38.23">
+<h2 data-number="38.23" class="anchored" data-anchor-id="f-test-example"><span class="header-section-number">38.23</span> F Test Example</h2>
+<p>Assume that <span class="math inline">\(n_1 = 28\)</span> and <span class="math inline">\(s_1^2 = 48\)</span></p>
+<p>Assume that <span class="math inline">\(n_2 = 16\)</span> and <span class="math inline">\(s_2^2 = 20\)</span></p>
+<p>Test whether <span class="math inline">\(\sigma_1^2 = \sigma_2^2\)</span></p>
+<p>Let <span class="math inline">\(\alpha = .10\)</span> so <span class="math inline">\(\alpha/2 = 0.05\)</span></p>
+<p>The calculated F-statistic is 2.4.</p>
+<p>The critical value at 5% is 2.28.</p>
+<p>We reject the null hypothesis that the variances are equal at the 5% level of statistical significance.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>n_1 <span class="ot">&lt;-</span> <span class="dv">26</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>s_1 <span class="ot">&lt;-</span> <span class="dv">48</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>n_2 <span class="ot">&lt;-</span> <span class="dv">16</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>s_2 <span class="ot">&lt;-</span> <span class="dv">20</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>alpha <span class="ot">=</span> .<span class="dv">1</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>f_crit <span class="ot">&lt;-</span> <span class="fu">qf</span>(alpha<span class="sc">/</span><span class="dv">2</span>, n_1<span class="dv">-1</span>, n_2<span class="dv">-1</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>f_stat <span class="ot">&lt;-</span> s_1<span class="sc">/</span>s_2</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>f_pvalue <span class="ot">&lt;-</span> <span class="fu">pf</span>(f_stat, n_1 <span class="sc">-</span> <span class="dv">1</span>, n_2<span class="dv">-1</span>, <span class="at">lower.tail =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>vars <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(n_1, s_1, n_2, s_2, alpha, </span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>                   f_stat, f_crit, f_pvalue)</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(vars,</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>      <span class="at">align     =</span> <span class="st">"cccccccc"</span>,</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption   =</span> <span class="st">"F Test"</span>,</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"n1"</span>, <span class="st">"s1"</span>, <span class="st">"n2"</span>, <span class="st">"s2"</span>, </span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"alpha"</span>, <span class="st">"F Statistic"</span>, </span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"F Critical"</span>, <span class="st">"P(F &gt; F)"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">11</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<table class="table caption-top table-sm table-striped small">
+<caption>F Test</caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;" data-quarto-table-cell-role="th">n1</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">s1</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">n2</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">s2</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">alpha</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">F Statistic</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">F Critical</th>
+<th style="text-align: center;" data-quarto-table-cell-role="th">P(F &gt; F)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">26</td>
+<td style="text-align: center;">48</td>
+<td style="text-align: center;">16</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">0.1</td>
+<td style="text-align: center;">2.4</td>
+<td style="text-align: center;">2.279729</td>
+<td style="text-align: center;">0.0405991</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="wrapping-up" class="level2" data-number="38.24">
+<h2 data-number="38.24" class="anchored" data-anchor-id="wrapping-up"><span class="header-section-number">38.24</span> Wrapping Up</h2>
+<p>In this module, we explored hypothesis testing. We noted the differences between Type I and Type II errors and examined how to form one-tail and two-tailed hypothesis tests. We estimated critical statistics when the population variance is known and unknown. We then explored examples of different types of hypothesis tests in R.</p>
+<p>We then discussed how to conduct hypothesis tests for means, differences in mean, and variances. We introduced the Chi-Squared distribution and how it is used to make inferences regarding population variances. We also investigated how to use R to test hypotheses regarding two population variances and introduced the F-test.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./mod-8-2-means.html" class="pagination-link" aria-label="Hypothesis Testing: Means">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Hypothesis Testing: Means</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

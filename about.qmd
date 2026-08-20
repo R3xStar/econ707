@@ -1,0 +1,55 @@
+---
+title: "Course Objectives"
+format: html
+editor: visual
+---
+
+## Course Learning Objectives (CLOs)
+
+-   CLO 1: **Formulate** economic research questions and testable hypotheses that can be examined using publicly available data
+
+-   CLO 2: **Acquire**, **manage**, and **prepare** economic data by applying programming techniques in R, including data extraction from APIs and other official sources.
+
+-   CLO 3: **Apply** descriptive statistics, probability concepts, and sampling methods to summarize, visualize, and interpret economic data.
+
+-   CLO 4: **Conduct** hypothesis testing and interval estimation to draw valid inferences from economic and financial data.
+
+-   CLO 5: **Utilize** R and RStudio to implement statistical techniques and effectively communicate results through reproducible code, visualizations, and written analysis.
+
+## Textbooks and Materials
+
+The required textbooks are an integral part of the class. Students should expect to read the textbooks prior to class and to be prepared to answer discussion questions from the textbook. These textbooks provide a foundation upon which the course is built and students will succeed if they take the time to read and review the material in the textbooks.
+
+[**These textbooks are free.**]{.underline}
+
+As this course focuses on the learning and application of statistical techniques, a computer with R and R Studio installed is necessary. You will need access to a laptop, tablet, or other computing device to complete the assignments and exams.
+
+**You may also use R Studio Cloud instead of a locally installed version of R.**
+
+You can create a free [R-Studio cloud](https://posit.co/download/rstudio-desktop/) if you do not want to use a locally installed version of R and R Studio.
+
+All other course materials are on Canvas or can be accessed through Canvas. You are required to know how to use Canvas to access and submit assignments, quizzes, and examinations. You should also be comfortable using ODU email to communicate.
+
+## Required Texts
+
+The following textbooks are available for free.
+
+Please select the links provided for each to access the textbooks.   
+
+Barbara Illowsky and Susan Dean. [*Introductory Statistics 2e*](https://openstax.org/books/introductory-statistics-2e/pages/1-introduction)*.* OpenStax.
+
+Christoph Hanck, Martin Arnold, Alexander Gerber,and Martin Schmelzer. (2025). [*Introduction to Econometrics with R*](https://www.econometrics-with-r.org)*.*
+
+Rafael Irizarry. (2025). [Introduction to Data Science: Data Wrangling and Visualization with R](https://rafalab.dfci.harvard.edu/dsbook-part-1/).
+
+Hadley Wickham, Mine Cetinkaya-Rundel, and Garrett Grolemund. (2025) [R for Data Science](https://r4ds.hadley.nz/).
+
+## Optional Materials
+
+David R. Anderson, Dennis J. Sweeney, Thomas A. Williams, Jeffrey D. Camm, and James J. Cochran. *Statistics for Business and Economics 14th Edition*. Earlier editions will suffice.
+
+Angrist, J.D. & Pischke, Jorn-Steffen. (2013). *Mostly Harmless Econometrics: An Empiricist’s Companion*. Content Technologies Inc.
+
+Baruffa, O. (2025). [*The Big Book of R*](https://www.bigbookofr.com/)
+
+Kennedy, P. (2003). *A Guide to Econometrics*. MIT Press.

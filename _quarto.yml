@@ -1,0 +1,81 @@
+project:
+  type: book
+  output-dir: docs       # HTML files will be placed in docs/ for GitHub Pages
+
+book:
+  title: "ECON 707"
+  author: "Rex Sitti"
+  chapters:
+    - part: "Introduction"
+      chapters:
+        - index.qmd
+        - sitti.qmd
+        - about.qmd
+    - part: "Introduction to R"
+      chapters:
+        - mod-1-0-overview.qmd
+        - mod-1-1-intro-to-data.qmd
+        - mod-1-2-intro-to-r.qmd
+        - mod-1-3-intro-to-r-variables.qmd
+        - mod-1-4-intro-to-r-dataframes.qmd
+        - mod-1-5-quarto.qmd
+    - part: "Descriptive Statistics"
+      chapters: 
+        - mod-2-0-overview.qmd
+        - mod-2-1-frequency.qmd
+        - mod-2-2-central.qmd
+        - mod-2-3-variance.qmd
+        - mod-2-4-zscores.qmd
+    - part: "Covariance and Correlation"
+      chapters:
+        - mod-3-0-overview.qmd
+        - mod-3-1-skewness.qmd
+        - mod-3-2-normal.qmd
+        - mod-3-3-correlation.qmd
+    - part: "Introduction to Probability"
+      chapters: 
+        - mod-4-0-overview.qmd
+        - mod-4-1-probability.qmd
+        - mod-4-2-rules.qmd
+        - mod-4-3-conditional.qmd
+    - part: "Discrete Probability"
+      chapters: 
+        - mod-5-0-overview.qmd
+        - mod-5-1-discrete.qmd
+        - mod-5-2-binomial.qmd
+        - mod-5-3-poisson.qmd
+    - part: "Continuous Probability"
+      chapters:
+        - mod-6-0-overview.qmd
+        - mod-6-1-uniform.qmd
+        - mod-6-2-normal.qmd
+        - mod-6-3-exponential.qmd
+    - part: "Sampling Distributions"
+      chapters: 
+        - mod-7-0-overview.qmd
+        - mod-7-1-sampling.qmd
+        - mod-7-2-central.qmd
+        - mod-7-3-interval.qmd
+    - part: "Inference"
+      chapters: 
+        - mod-8-0-overview.qmd
+        - mod-8-1-hypothesis.qmd
+        - mod-8-2-means.qmd
+        - mod-8-3-variance.qmd
+execute:
+  webR: true            # enables WebR chunks for interactive R in the browser
+  
+filters:
+  - webr                # activates the webR filter globally
+  
+webr:
+  packages: [dplyr, ggplot2, knitr]
+
+format:
+  html:
+    toc: true
+    toc-location: right
+    self-contained: false   # recommended for WebR to load JS modules correctly
+    link-external-newwindow: true  # open all links in new tabs
+
+

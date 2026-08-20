@@ -1,0 +1,296 @@
+---
+title: "Measures of Dispersion"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Data Properties
+
+Previously, we discussed measures of the **central tendency** of the data.
+
+We used population data from the U.S. Census to estimate the population mean, $\mu$, as well as the median.
+
+We used sample data from the *mtcars* dataset to estimate the sample average, $\bar{x}$, as well as the sample median.
+
+We also used R and RStudio to estimate the number of observations, the minimum value for a variable, and the maximum value for a variable.
+
+The measures of central tendency estimate the *middle* of the data, however, we also noted that **outliers** can influence the sample average. We discussed how to **trim** the data to reduce the influence of outliers.
+
+The measures of central tendency do not provide us information about the **spread** or **dispersion** of the data.
+
+Are the data "tightly clustered" around the measure of central tendency or are the data "spread out?"
+
+We want to know the spread of the data relative to the center of the data.
+
+To this end, we will estimate measure of the **variance** and **standard deviation**.
+
+## Population Variance
+
+One measure of the dispersion (spread) of the data is the **range** which is equal to the distance between the minimum and maximum observations in the data.
+
+We could estimate the average distance of the observations from the mean or:
+
+$$\text{average mean deviation} = \frac{1}{N} \sum_{i = 1}^N (x_i - \mu)$$
+
+However, if sum of the mean deviations is equal to zero in the population, the average of the mean deviations will also be zero in the population.
+
+We note that the sum of the **squared mean deviations** will not be zero.
+
+The **population variance**, $\sigma^2$, is equal to the average of the sum of the squared mean deviations:
+
+$$\text{Population Variance} = \sigma^2 = \frac{1}{N} \sum_{i = 1}^N (x_i - \mu)^2$$
+
+## Population Standard Deviation
+
+As noted previously, the population variance, $\sigma^2$, is the average of the squared mean deviations:
+
+$$\sigma^2 = \frac{1}{N} \sum_{i = 1}^N (x_i - \mu)^2$$
+
+The population variance, $\sigma^2$, may difficult to interpret as $\sigma^2$ is measured in the squared units of the variable of interest.
+
+*In other words, if we were measuring the variance of total population, the variance would be in individuals-squared units. If we were measuring the variance of income, the variance would be in income-squared units.*
+
+The **population standard deviation**, $\sigma$, is the positive square root of the population standard deviation.
+
+$$\sigma = \sqrt{\frac{1}{N} \sum_{i = 1}^N (x_i - \mu)^2}$$The standard deviation is measured in the same units as the variable of interest.
+
+Lastly, we note that if we have two variables $x$ and $y$, then $x$ is less dispersed than $y$ if $\sigma_x < \sigma_y$.
+
+## Variance Example
+
+In the example below, we create a tibble of **simulated** population data.
+
+There are 1,000,000 observations drawn from a **random normal** distribution with a population mean of 50.5 and a standard deviation of 5.
+
+In other words, we are creating a population with a known mean and known standard deviation.
+
+Since the variance is the square of the standard deviation, we know the variance also.
+
+For a random variable, $X$ that is distributed normally with mean $\mu$ and variance $\sigma^2$, we can express this distribution of $X$ as:
+
+$$X \sim N(\mu, \sigma^2 )$$
+
+We use the **summarize** function for this example.
+
+We estimate the population variance manually and using the **var** function.
+
+We then estimate the population standard deviation manually and using the **sd** function.
+
+We do this to illustrate the manual estimates and estimates using the functions are the same.
+
+An additional note that each time you run the code, a new population is generated, and the descriptive statistics may change.
+
+```{webr-r}
+
+rm(list = ls())
+
+population <- tibble(pop = rnorm(1000000, mean = 50.5, sd = 5))
+
+pop_stats <- population %>%
+  summarize(man_mean = sum(pop)/n(),
+            mean_pop = mean(pop),
+            man_var  = sum((pop-mean(pop))^2)/n(),
+            var_pop  = var(pop),
+            man_sd   = sqrt(sum((pop-mean(pop))^2)/n()),
+            sd_pop   = sd(pop))
+            
+kable(pop_stats,
+      align  = 'c',
+      digits = 2,
+      font   = 8,
+      col.names = c('M.Mean','Mean',
+                    'M.Variance', 'Variance',
+                    'M.Std. Dev', 'Std. Dev'))
+      
+```
+
+## Census Example
+
+In the code chunk below, we replicate the example above but with actual data from the U.S. Census for the total population of counties and county-equivalent geographies in the United States.
+
+Note the difference between the mean and median population estimates. The relatively large counties influence the population mean and 'pull' it away from the population median.
+
+```{r, message = FALSE}
+
+rm(list = ls())
+
+library(censusapi)
+library(dplyr)
+library(kableExtra)
+library(tidyverse)
+
+county_pop <- getCensus(name = "acs/acs5",
+            vintage = 2023,
+            key     = "9c1637a56ff93f0af6b4b1d0547ea048fe668175",
+            vars    = c("NAME",
+                        "B01001_001E"),
+            region  = "county:*") %>%
+rename(pop = B01001_001E) %>%
+summarize(med_pop  = median(pop),
+          mean_pop = mean(pop),
+          var_pop  = var(pop),
+          sd_pop   = sd(pop))
+
+kable(county_pop,
+      col.names = c('Median', 'Mean',
+                    'Variance', 'Std. Dev'),
+      align     = 'c',
+      digits    = 2,
+      caption = 'Mean, Variance, and Standard Deviation, County Population') %>%
+kable_styling(font_size = 12)
+
+```
+
+## Sample Variance
+
+The sample variance, $s^2$, is estimated by:
+
+$$s^2 = \frac{1}{n-1} \sum_{i = 1}^n (x_i - \bar{x})^2$$
+
+One might ask, "why do we divide by $n-1$ instead of $n$?"
+
+The population mean $\mu$ is a **known, definite mean**. It does not require estimation.
+
+The sample average, $\bar{x}$ is an **estimate** of the population mean $\mu$.
+
+If $\mu$ is known, then we can reconstitute the data with $n-1$ values.
+
+With 100 observations and $\mu = 50$, then the $n-1$ values can take on any value, but the *n-th* value is **constrained** so $\mu = 50$.
+
+The loss of a **degree of freedom** requires the use $n-1$ in the sample variance instead of $n$.
+
+## Sample Standard Deviation
+
+The sample variance, $s^2$, is estimated by:
+
+$$s^2 = \frac{1}{n-1} \sum_{i = 1}^n (x_i - \bar{x})^2$$
+
+The sample standard deviation, $s$, is estimated by:
+
+$$s = \sqrt{\frac{1}{n-1} \sum_{i = 1}^n (x_i - \bar{x})^2}$$ **R** (as with most programs) calculates the sample variance and sample standard deviation.
+
+As $n$ increases, the impact of dividing by $n-1$ rather than $N$ declines.
+
+If you are worried about $n-1$, then you are likely to have other issues (sample size) of higher concern.
+
+## Sample Example
+
+We simulate 100,000 observations from a normal distribution with $\mu = 100$ and $\sigma = 8.5$.
+
+We then take a random sample of 1,000 observations from the population and estimate the variance manually and with the **var** function in **summarize**
+
+The **slice_sample** function is used to randomly select rows from a data frame.
+
+The manually calculated sample variance using $(n-1)$ is equal to the variance obtained from the **var** function in R illustrating that R generates its variance estimate using the sample variance formula.
+
+As $\sigma$ is the square root of $\sigma^2$, the same discussion applies.
+
+It is interesting to note that a new set of values for $X$ is generated each time the code is run, changing the resulting sample descriptive statistics.
+
+*Try changing the sample size, that is, changing from n = 1000 to n = 50, and observe what happens to the sample statistics for variance and standard deviation across several runs.*
+
+```{webr-r}
+
+rm(list = ls())
+
+df_1 <- data.frame(x = rnorm(100000, mean = 100, sd = 8.5)) %>%
+        slice_sample(n = 1000)
+
+var_df1 <- df_1 %>%
+  summarize(n = n(),
+            var_man_n  = (1/n())*sum((x - mean(x))^2),
+            var_man_n1 = (1/(n()-1))*sum((x - mean(x))^2),
+            var_auto   = var(x),
+            sd_auto    = sd(x))
+
+df_2 <- slice_sample(df_1, n = 1000)
+
+kable(var_df1,
+      col.names = c('Observations',
+                    'Variance (N)', 
+                    'Variance (n-1)',
+                    'Variance',
+                    'Standard Deviation'),
+      align     = 'c',
+      digits    = 3,
+      caption = 'Variance with N and n-1')
+
+```
+
+## Coefficient of Variation
+
+The **coefficient of variation** is a measure of how "large" the standard deviation is relative to the mean.
+
+The coefficient of variation for the population is:
+
+$$\text{coefficient of variation} = \frac{\sigma}{\mu}$$ The coefficient of variation for a sample is:
+
+$$\text{coefficient of variation} = \frac{s}{\bar{x}}$$
+
+The higher the coefficient of variation, the greater the level of dispersion of observations around the mean.
+
+In finance, the coefficient of variation estimates how much volatility, or risk, is assumed in comparison to the amount of return expected from investments.
+
+The lower the coefficient of variation, the better risk-return trade-off.
+
+## Tidyquant Example
+
+We use the **tidyquant** package to obtain stock price data for Apple, Ford, General Motors, Gamestop, IBM, and Netflix.
+
+We then estimate the coefficient of variation for each of these corporations.
+
+From January 2020 to July 2025, IBM had the lowest coefficient of variation, that is, it was the least volatile relative to its mean.
+
+Over the same period, Netflix and Gamestop has the highest coefficients of variation, that is, these stocks were relatively volatile when compared to IBM or Ford.
+
+```{r, message = FALSE}
+
+rm(list = ls())
+
+library(censusapi)
+library(dplyr)
+library(kableExtra)
+library(tidyverse)
+library(tidyquant)
+
+tickers <- c('AAPL', 'F',
+             'GM', 'GME',
+             'IBM', 'NFLX')
+
+prices <- tq_get(tickers, 
+                  from = '2010-01-01',
+                  to   = "2025-07-31",
+                  get  = "stock.prices")
+
+
+coef_var <- prices %>%
+  group_by(symbol) %>%
+  summarize(cv = sd(close)/mean(close)) %>%
+  arrange(cv)
+
+kable(coef_var,
+      col.names = c('Company',
+                    'Coefficient of Variation'),
+      align     = c('c','c'),
+      caption   = 'Coefficient of Variation') %>%
+kable_styling(font_size = 12)
+
+```

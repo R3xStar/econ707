@@ -1,0 +1,264 @@
+---
+title: "Variables in R"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(lubridate, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Assigning Numeric Values to Variables
+
+We can use the **assignment operator** in R to assign values to a variable. The assignment operator can be thought of as moving a value, character, date, or other form into a named variable.
+
+The assignment operator is "\<-".
+
+The line, "x2 \<- 1056", means assign the value 1056 to the variable **x2**.
+
+In the code below, we assign the numerical value of 2 to the variable **x1** and the numerical value of 4.5 to the variable **x2**.
+
+We can assign the value contained in one variable in another. For example, we can assign **x2** to **x3** and also specify that the integer value of **x2** is assigned to **x3**.
+
+```{webr-r}
+
+#Clear the Workspace
+
+rm(list = ls())
+
+#Assign 2 to variable x_1
+
+x1 <- 2
+
+#Assign 4.5 to variable x_2
+
+x2 <- 4.5
+
+#Assign the integer value of x_2 to x_3
+
+x3 <- as.integer(x2)
+
+#Output the variables 
+
+x1
+x2
+x3
+
+```
+
+## Assigning Character Values to a Variable
+
+We can assign character values to a variable. In the following code, we assign the name "Timothy" as a character to the variable **name1**.
+
+There is a subtle but important difference to storing a value as a character or as a numeric variable.
+
+We assign the **numeric** or **quantitative** value 06250 to **x4** and 06250 as a **character** or **qualitative** value to **name2**.
+
+Note what happens: when stored as a numeric value, 06250 is stored as 6250. When 06250 is stored as "06250" as a character variable, the character variable does not "lose" then "0" in the front of "06250".
+
+This can be very important if you are storing an identification value with a leading 0.
+
+```{webr-r}
+
+rm(list = ls())
+
+#Assign the character Timothy to name_1
+
+name1 <- as.character("Timothy")
+
+#Assign the numeric value 06250 to x_4
+
+x4 <- 06250
+
+#Assign 06250 as a character 
+
+name2 <- as.character("06250")
+
+#Convert the character 06250 to numeric
+
+name3 <- as.numeric(name2)
+
+# Output
+
+name1
+x4
+name2
+name3
+```
+
+## Assigning Date Values to a Variable
+
+We can also store dates and work with dates. We assign 2020-09-01 a date value using the **lubridate** package. Note that we tell the package that the format of the date is year-month-day (ymd).
+
+Likewise, we assign 09-05-2020 to date2 as a date variable but tell the package that the format of the date is now month-day-year (mdy).
+
+Note that even though the dates are in different formats, the **lubridate** package transforms the dates into a format recognizable by R.
+
+Having transformed the date values, we can calculate the time difference by assigning the difference between the two dates to variable **date3**.
+
+```{webr-r}
+
+rm(list = ls())
+
+library(lubridate, quiet = TRUE)
+
+#Convert the text "2020-09-01" to a date variable
+
+date1 <- lubridate::ymd("2020-09-01")
+
+#Convert "2020-09-05" to a date variable
+
+date2 <- lubridate::mdy("09-05-2020")
+
+#Calculate the time difference between two variables
+
+date3 <- date2 - date1
+
+#Output the variables 
+
+date1
+date2
+date3
+
+```
+
+## Creating Vectors
+
+We can now create a vector that contains several values. In the following example, we combine several numbers and assign them to the variable **x5**.
+
+We can transpose the variable x5. Notice the difference between x5 and its transpose. X5, when output to a table, has five rows and one column. The transpose of X5, when it output to a table, is one row and five columns.
+
+We can also combine other variables (if they are the same type) to form a new vector. You can combine single element variables with vectors to create a new vector **x6**.
+
+We can also combine vectors. We create **x7** by combining the variables x1, x2, x3, x4 with the vector x5.
+
+```{r, messages = FALSE, results = 'hold'}
+
+rm(list = ls())
+
+#Load packages
+
+library(kableExtra, quiet = TRUE)
+
+# Assign values to x1, x2, x3, x4
+
+x1 <- 1
+x2 <- -5
+x3 <- 136
+x4 <- 0.47
+
+#Create a vector 
+
+x5 <- c(12, 13, 14, 25, 100)
+
+#Transpose x5
+
+x6 <- t(x5)
+
+#Use existing variables to create a row vector
+
+x7 <- c(x1, x2, x3, x4, x5)
+
+# Use kable To Create Tables of X5 and X6
+# align = 'c' -> aligns to center
+# digits = 0  -> no decimals
+# col.names -> sets a name for the column
+
+kable(x5,
+      align = 'c',
+      digits = 0,
+      col.names = c('X5'),
+      caption = 'Table Containing Variable X5')
+
+kable(x6,
+      align = 'c',
+      col.names = c('A','B','C','D','E'),
+      caption = 'Table Containing Transpose of X5')
+
+kable(x7,
+      align = 'c',
+      digits = 0,
+      col.names = c('X7'),
+      caption = 'Table Containing Variable X7')
+
+```
+
+When we display **x5**, for example, we note is a vector 5 elements. We can also directly manipulate **x5** by multiplying it by two.
+
+We should, however, understand that product of **x5** and 2 is not stored, it's a direct manipulation and not available for future use.
+
+If we wanted to store it, we would have to assign it to a variable. Here, we assign the product of **x5** and 2 to the variable **x8**.
+
+```{r, messages = FALSE, results = 'hold'}
+
+rm(list = ls())
+
+#Load packages
+
+library(kableExtra, quiet = TRUE)
+
+#Create a vector 
+
+x5 <- c(12, 13, 14, 25, 100)
+
+kable(x5*2,
+      align = 'c',
+      digits = 2,
+      col.names = c('X5 * 2'),
+      caption = 'Table of Variable X5 - Each Element Times 2')
+
+#Assign x5*2 to x8
+
+x8 <- x5*2
+
+kable(x8,
+      align = 'c',
+      digits = 1,
+      col.names = c('X8'),
+      caption = 'Table of Variable X8')
+```
+
+## Assignment and Vector Practice
+
+We have now worked on the basics of assignment elements to vectors and manipulating vectors in R.
+
+As practice, try the following.
+
+Create a vector made of the following numbers: 5, 10, 12, 24.
+
+Create a second vector that divides each element of the first vector by 2.
+
+Output the second vector to a table.
+
+You can build off the example below.
+
+```{r, messages = FALSE, results = 'hold'}
+
+rm(list = ls())
+
+library(kableExtra, quiet = TRUE)
+
+vector_1 <- c(4, 16, 25, 81, 10000)
+
+vector_2 <- sqrt(vector_1)
+
+kable(vector_2,
+      align = 'c',
+      col.names = 'Vector 2')
+
+```

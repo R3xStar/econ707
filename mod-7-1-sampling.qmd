@@ -1,0 +1,292 @@
+---
+title: "Sampling"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Terminology
+
+An **element** is the entity on which data are collected.
+
+A **population** is a collection of all the elements of interest.
+
+A **sample** is a subset of the population.
+
+The **sampled population** is the population from which the sample is
+drawn
+
+A **frame** is a list of elements from which the sample will be
+selected.
+
+A sample provides **estimates** of the population characteristics.
+
+The question is whether the sample estimates are representative of the
+population characteristics?
+
+To answer this question, we need to ask what **sampling methods**
+produce "reliable" estimates?
+
+## Finite Population Sampling
+
+Let $N$ be the population size where $N < \infty$ so $N$ is finite.
+
+Let $n$ be the sample size where $n \le N$.
+
+A simple random sample of size $n$ from a finite population of size $N$
+is a sample selected such that each possible sample of size $n$ has the
+same probability of being selected.
+
+We can sample with replacement, however, sampling without replacement is
+more typically used.
+
+Remembering our discussion of combinations, we know that the number of
+different samples of size $n$ that can be drawn from the population of
+size $N$ is:
+
+$$\frac{N!}{n!(N-n)!}$$
+
+## Finite Sampling Example
+
+Create a finite population of numbers from 0 to 100,000, sequenced by 1.
+
+The population mean is
+
+$$\mu = \sum_{i = 1}^N \frac{x_i}{N}$$
+
+Generate 5 samples of size $n = 100$ without replacement.
+
+The sample average is:
+
+$$\bar{x} = \sum_{i = 1}^n \frac{x_i}{n}$$
+
+The population mean is 50,000, however, the sample averages vary
+"around" the population mean.
+
+If you run the code multiple times, the population mean does not vary,
+but the sample averages will change with each run as we have not
+**set.seed** the code.
+
+The code below does the following:
+
+-   Creates a population of integers, sequenced by 1, from 0 to 100,000
+
+-   Sets the samples variable to 5
+
+-   Creates a vector, avg_x, filled with zeros with the number of
+    columns set by samples
+
+-   Runs a loop where the number of loops is set by the samples variable
+
+-   In each loop, takes a random sample of 100 from the population and
+    estimates the average
+
+-   Creates a tibble of the averages and row binds the population mean
+
+-   Transposes the vector of averages and the population mean
+
+-   Produces a table of results
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(kableExtra)
+
+population <- seq(0, 100000, by = 1) 
+
+samples <- 5
+avg_x <- rep(0,samples)
+
+for(i in 1:samples){
+  avg_x[i] <- mean(sample(population, size = 100, replace = FALSE))
+}
+
+samples <- tibble(avg_x) %>% 
+           rbind(mean(population)) %>% t()
+
+kable(samples,
+      align       = "c", 
+      format.args = list(big.mark = ",", 
+                         scientific = FALSE),
+      caption     = "Sample Averages and Population Mean",
+      col.names   = c("Sample 1", "Sample 2", 
+                      "Sample 3", "Sample 4",
+                      "Sample 5", "Population")) %>%
+kable_styling(font_size = 10)
+
+```
+
+## Infinite Population Sampling
+
+We can also sample from a population that continues to change over time.
+
+$$N(t) < N(t+1) < N(t+2) < \dots$$
+
+In this case, we cannot find a list of all the elements in the
+population because the population is increasing without limit.
+
+We cannot randomly select observations since the probability of
+selection a sample of size $n$ is dependent upon when the population was
+sampled.
+
+If we consider population of students that have enrolled at ODU, this
+number changes within each semester and across semesters. The population
+of current and former students is not static and theoretically could
+increase without bound.
+
+To sample the ODU population we need to fulfill two conditions.
+
+-   Each element in the random sample must come from the population of
+    interest.
+
+-   Each element in the random sample is selected independently.
+
+## Infinite Sampling Example
+
+Assume we want to construct a sample of 1,000 ODU students and estimate
+average household income.
+
+First, we need to ensure each element in the random sample comes from
+the population of interest.
+
+Our sampling method would need to randomly select ODU students from the
+same time period.
+
+In other words, the 2025 - 2026 Academic Year rather than across the
+last two decades as our interest is estimating the household income of
+the current student population.
+
+Why?
+
+If we sampled household income from 1970, would that be representative
+of the household income of the current and future student population?
+
+***In other words, currency of data matters.***
+
+Second, we need to ensure each element is selected independently to
+avoid selection bias.
+
+We should not randomly sample from students at Webb Center or students
+in the commuter car parking lot. Both sampling mechanicisms would
+produce biased samples of the ODU population.
+
+What if we found students who purchased from the bookstore during the
+last week of October?
+
+We could find each student in the registrar list and then select the
+student $x$ number of positions alphabetically in front or behind the
+student.
+
+The purchases of students at the bookstore are random and independent of
+other students. Thus, the selection of students $x$ positions in front
+or behind in the alphabetical list of students yields a random sample
+that is independently drawn from the infinite population.
+
+## Estimators and Estimates
+
+Point estimation is the use of sample data to estimate a sample
+statistic.
+
+**An estimator is a rule for calculating an estimate of a given quantity
+based on observed data.**
+
+-   The sample average, $\bar{x}$ is an estimator for the population
+    mean.
+
+-   The estimator $\bar{x}$ produces an estimate of the population mean
+    $\mu$ using the $n$ observations,
+
+-   $s^2$ is the estimator of the population parameter $\sigma^2$.
+
+-   $s$ is the estimator of the population parameter $\sigma$.
+
+-   $\bar{p}$ is the estimator of the population proportion $p$.
+
+In the code below, we demonstrate how the sample average and sample
+standard deviation are estimators of the population mean and the
+population standard deviation.
+
+We generate point estimates using:
+
+$$\bar{x} = \sum_{i = 1}^n x_i / n$$
+
+$$s = \sqrt{ \frac{\sum_{i = 1}^n(x_i - \bar{x})^2}{n-1}}$$
+
+The code below does the following:
+
+-   Generates 1,000,000 random numbers drawn from a normal distribution
+
+-   The mean of the normal distribution is 25 with a standard deviation
+    of 3
+
+-   Declares 5 samples will be taken
+
+-   Creates three vectors to be filled by the loop
+
+-   A sample of 500 is taken from the population
+
+-   The sample number is set to the iteration of the loop
+
+-   The sample average and sample standard deviation are estimated
+
+-   A tibble is created of all three variables
+
+-   A table of output is produced
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(kableExtra)
+
+population <- rnorm(1000000, mean = 25, sd = 3) 
+
+samples <-5 
+samp_no <- rep(0,samples)
+mean_vec <- rep(0,samples)
+sd_vec <- rep(0,samples)
+
+for(i in 1:samples){
+  temp <- sample(population, size = 500, replace = FALSE)
+  samp_no[i] <- i
+  mean_vec[i] <- mean(temp)
+  sd_vec[i] <- sd(temp)
+}
+
+samples <- tibble(samp_no, mean_vec,sd_vec)
+
+kable(samples,
+      align       = "ccc", 
+      digits      = 2,
+      caption     = "Sample and Population Averages",
+      col.names   = c("Sample","Average", "SD")) %>%
+kable_styling(font_size = 10)
+
+```
+
+An illustrative exercise is to increase the sample size relative to the
+population and observe what happens to the estimates of the mean and
+standard deviation.

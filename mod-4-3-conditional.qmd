@@ -1,0 +1,470 @@
+---
+title: "Conditional Probability"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Introduction
+
+Given a standard 52-card deck, we know the probability of drawing a King from a 52-card deck is:
+
+$$P(K) = 4/52 = 1/13 = 0.077$$
+
+This is an **unconditional probability** which is the likelihood of an event occurring without considering any other events.
+
+*What if, however, you were interested in the probability of an event occurring given that another event had already occurred?*
+
+What if you were interested in knowing the likelihood of drawing a King given that you had already drawn an Ace?
+
+What is the probability of hitting a single given that a base runner is on third-base with two-outs in the bottom of the 9th-inning?
+
+These are examples of **conditional probability**.
+
+What is the probability of **event A** occurring given that **event B** has already taken place?
+
+We use the following notation to denote the conditional probability of **A** given **B** or:
+
+$$
+P(A | B)
+$$
+
+## Conditional Probability
+
+The conditional probability of A given B, denoted $P(A|B)$, is the probability that event A has occurred in a trial of a random experiment for which it is known that event B has definitely occurred. It may be computed by means of the following:
+
+$$
+P(A|B) = \frac{P(A \cap B)}{P(B)}
+$$
+
+For example, assume that a fair die is rolled and you are asked to give the probability that the roll resulted in a five. Invariably, you would answer that the probability of rolling a 5 was $1/6$ because you know that $s \in \{1, 2, 3, 4, 5, 6 \}$ and each of the outcomes are equally likely or:
+
+$$
+P(5) = 1/6 = 0.167
+$$
+
+*What would occur, however, if you were provided information that the roll of the fair die resulted in an odd number prior to your assessment?*
+
+You would no longer state that the probability of rolling a 5 was $1/6$ because you know that the outcomes are $\{1, 3, 5 \}$. Given the outcomes are equally likely, you should assess the probability of rolling a 5 given the roll resulted in an odd number as $1/3$.
+
+$$F = \{5\} \quad O=\{1,3,5\}$$
+
+$$F \cap O = \{5\} \cap \{1,3,5\} = \{5\}$$
+
+$$P(O) = 3/6 \quad P(F \cap O) = 1/6$$
+
+$$
+P(Five | Odd) = P(F | O) = \frac{P(F \cap O)}{P(O)} = \frac{1/6}{3/6} = 1/3
+$$
+
+Now, let's reverse the problem.
+
+What is the probability of rolling an odd number given that we have rolled a five? Intuitively, we know that if we have already rolled an odd number, then the probability of one of those numbers being 5 is one.
+
+$$
+P(Odd | Five) = P(O | F) = \frac{P(O \cap F)}{P(F)} = \frac{1/6}{1/6} = 1
+$$
+
+## Conditional Probability Example
+
+In the following example, data are presented for the administration of two drugs. After administration of each drug, individuals are observed and any reactions to the drug are recorded for analysis.
+
+-   A = event when drug Adival (A) is administered
+
+-   B = event when drug Beritol (B) is administered
+
+-   Ab = event where there is no adverse reaction
+
+-   Mi = event where there is a mild adverse reaction
+
+-   Mo = event where there is a moderate adverse reaction
+
+-   Se = event where there is a severe adverse reaction
+
+```{r, warning = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(tidyverse)
+
+#Create Data Frame with Example Data
+#Use janitor to add totals
+
+library(janitor)
+
+react <- tibble(drug  = rep(c("Adival (A)",
+                              "Beritol (B)"), each = 4),
+                event = rep(c("Absent",  
+                              "Mild",
+                              "Moderate",
+                              "Severe"), times = 2),
+                cases = c(4530, 2485, 1600, 875,
+                          3683, 3125, 2745, 145)) %>%  
+        arrange(drug, event) 
+
+drug_wide <- react %>%
+  pivot_wider(id_cols     = drug,
+              names_from  = event,
+              values_from = cases) %>%
+  adorn_totals(c("row","col"))
+  
+kable(drug_wide,
+      align       = "lccccc", 
+      format.args = list(big.mark = ",", scientific = FALSE),
+      caption     = "Drug Reaction Table",
+      col.names   = c("Drug", "None", "Mild", "Moderate", "Severe", "Total")) %>%
+kable_classic(full_width = TRUE)
+
+```
+
+Suppose that the proportions reflected in the same data in the table reflect those in the population who received either drug. If we select a person at random:
+
+1.  What is the probability that the individual selected received drug A?
+
+2.  What is the probability the individual had a mild adverse reaction.
+
+3.  What is the probability that the individual had a mild reaction, given the person received drug A?
+
+The first two questions ask about the probability of an event. The last question asks about the conditional probability of an event.
+
+1.  Given 9,490 individuals received drug A, then $P(A)$ is equal to:
+
+$$P(A) = 9490/19188 = 0.495$$
+
+2.  5,610 individuals had a mild adverse reaction, then $P(Mi)$ is equal to:
+
+$$P(Mi) = 5610/19188 = .292$$
+
+3.  9,490 individuals who received drug A and 2,485 had a mild reaction, then $P(Mi | A)$ is:
+
+$$P(Mi | A) = 2485/9490 = 0.262$$ \## Joint and Marginal Probabilities
+
+Using the table below, we note that the interior (defined by the intersection of the drug and the reaction) are **joint probabilities**.
+
+For example, the joint probability of administering Beritol (B) and having a mild reaction (Mi) is 0.163.
+
+$$
+P(B \cap Mi) = 0.163
+$$
+
+The probabilities contained in the "Total" rows are the **marginal probabilities**.
+
+For example, the marginal probability of having no reaction to the drug (None) is equal to
+
+$$P(None) = P(A \cap None) + P(B \cap None) = 0.236 + 0.192 = 0.428$$
+
+An easy rule to remember is that the joint probabilities are the interior of the joint probability table while the marginal probabilities are along the exterior (margins) of the joint probability table.
+
+```{r, warning = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(tidyverse)
+
+#Create Data Frame with Example Data
+#Use janitor to add totals
+
+library(janitor)
+
+react <- tibble(drug  = rep(c("Adival (A)",
+                              "Beritol (B)"), each = 4),
+                event = rep(c("Absent",  
+                              "Mild",
+                              "Moderate",
+                              "Severe"), times = 2),
+                cases = c(4530, 2485, 1600, 875,
+                          3683, 3125, 2745, 145)) %>%  
+        arrange(drug, event) 
+
+react_freq <- react %>%
+  mutate(rel_freq = cases / sum(cases)) %>%
+  pivot_wider(id_cols     = drug,
+              names_from  = event,
+              values_from = rel_freq) %>%
+  adorn_totals(c("col", "row"))
+
+kable(react_freq,
+      align       = 'c',
+      digits      = 3,
+      format.args = list(big.mark = ",", scientific = FALSE),
+      caption     = "Drug Reaction Relative Frequency Table",
+      col.names   = c("Drug", "None", "Mild", "Moderate", "Severe", "Total")) %>%
+kable_classic(full_width = TRUE)
+```
+
+## Multiplication Law
+
+Recall that the **addition law** is used to compute the probability of the union of two events that are not mutually exclusive, that is:
+
+$$
+P(A \cup B) = P(A) + P(B) - P(A \cap B)
+$$
+
+Given a 52 card deck, then for a single draw of a card, the probability of drawing a Jack or a Spade is:
+
+$$P(Jack \cup Spade) = P(Jack) + P(Spade) - P(Jack \cap Spade)$$
+
+$$P(Jack \cup Spade) = 4/52 + 13/52 - 1/52 = 16/52 = 0.308$$
+
+Also, recall that conditional probability is
+
+$$
+P(A | B) = \frac{P(A \cap B)}{P(B)}
+$$
+
+Solving conditional probability for $P(A \cap B)$ yields the **multiplication law** for events that are not mutually exclusive:
+
+$$
+P(A \cap B) = P(B) P(A|B)
+$$
+
+Likewise
+
+$$
+P(B \cap A) = P(A) P(B|A)
+$$
+
+## Conditional Probability Example
+
+Another way to think of conditional probability is through the use of a tree diagram.
+
+Assume there are 6 blue marbles and 4 red marbles in a bag. On the first draw from the bag:
+
+-   P(Red) = 4/10
+
+-   P(Blue) = 6/10
+
+Now, given that you have drawn a red marble, what is the probability of drawing another red marble? If we draw without replacement, there are now 9 marbles in bag. From the 9 marbles, we know that
+
+-   P(Red) = 3/9
+
+-   P(Blue) = 6/9
+
+So, we can now construct the probability of drawing a red marble on the 2nd draw given that the first draw was red.
+
+-   P(Red \| Red) = 4/10 \* 3/9 = 0.133
+
+-   P(Blue \| Red) = 4/10 \* 6/9 = 0.267
+
+We can apply the same logic to determine the probability of drawing a red given that we have already drawn a blue, or
+
+-   P(Red \| Blue) = 6/10 \* 4/9 = 0.267
+
+-   P(Blue \| Blue) = 6/10 \* 5/9 = 0.333
+
+Note that when we add all the conditional probabilities together, the sum is equal to 1.
+
+## Independent Events
+
+In the previous example, each time we drew a marble, we did not replace it in the bag. The probabilities of the second draw were dependent on the first draw.
+
+What would occur if we replaced the marble?
+
+What is the probability of drawing a red marble on the second draw after drawing a red marble on the first draw and putting the drawn ball back in the bag?
+
+Since the marble is replaced, the probability of drawing a red marble on any draw is 4/10. So, the probability of drawing red given red is:
+
+-   P(Red \| Red) = 4/10 \* 4/10 = 16/100 = 0.16
+
+-   P(Blue \| Red) = 4/10 \* 6/10 = 24/100 = 0.24
+
+Which leads to the multiplication law for independent events:
+
+$$
+P(A \cap B) = P(A) \times P(B)
+$$
+
+## Bayes' Theorem
+
+Bayes' Theorem is a method of using known probabilities and new information to obtain updated probabilities. Bayes' Theorem is:
+
+$$
+P(A|B) = \frac{P(A)P(B|A)}{P(B)}
+$$
+
+In other words, the conditional probability of A given B is determined by the probability of A, the conditional probability of B given A, and the probability of B.
+
+## Bayes' Theorem Example
+
+Assume the following:
+
+-   P(Fire) be the probability of fire occurring
+
+-   P(Smoke) the probability of Smoke occurring
+
+-   P(Fire \| Smoke) be the probability of fire given there is smoke
+
+-   P(Smoke \| Fire) be the probability of smoke given there is fire.
+
+-   P(Fire) = 0.01
+
+-   P(Smoke) = 0.10
+
+-   P(Smoke \| Fire) = 0.90
+
+What this tells us is that fire is relatively rare, smoke is more common than fire, and that if there is a fire, there is a high probability of smoke.
+
+We can use Bayes' Theorem to find that the probability of fire when there is smoke is 9%.
+
+$$
+P(Fire|Smoke) = \frac{P(F)P(S|F)}{P(S)} = \frac{0.01 \times 0.9}{0.1} = 0.09
+$$
+
+## Bayes' Theorem Example
+
+Assume that you are trying to determine whether you have a false positive diagnostic test.
+
+-   For individuals who have the disease, the test registers a positive value 90% of the time.
+
+-   For individuals who do not have the disease, the test registers a positive value 5% of the time.
+
+If 3% of the population are currently infected with the disease, and your test returns a positive value, what is the probability that you actually have the disease?
+
+-   P(Disease) = 0.03
+
+-   P(Positive \| Disease) = 0.90
+
+-   P(Positive) must be determined given the information on hand.
+
+We know that 3% of population has the disease.
+
+This implies 97% of the population does not have the disease.
+
+We know the test will return a positive value for 90% of the infected individuals.
+
+We know the test will return a positive value for 5% of the uninfected individuals.
+
+To estimate the probability of a positive test:
+
+$$
+P(Positive) = P(Infected \cap Positive) + P(Not Infected \cap Positive)
+$$
+
+$$
+P(Positive) = (0.03 \times 0.9) + (0.97 \times 0.05) = 0.0755
+$$
+
+We know know all the elements.
+
+Bayes' Theorem:
+
+$$
+P(A|B) = \frac{P(A)P(B|A)}{P(B)}
+$$
+
+$$
+P(Disease | Positive) = \frac{P(D)P(P|D)}{P(P)} 
+$$
+
+$$
+P(Disease | Positive) = \frac{P(D)P(P|D)}{P(P)} = \frac{0.03 \times 0.9}{0.0755} = 0.358
+$$
+
+In other words, if you receive a positive test result, there is a 35.8% chance you have the disease.
+
+## Smallpox vs Chickenpox
+
+A patient arrives with spots that appear to be smallpox. It could also be chickenpox.
+
+-   The probability a person with smallpox has spots is 0.9.
+
+-   The probability a person with chickenpox has spots is 0.8.
+
+-   The probability that someone in the population has spots is 0.081.
+
+-   The probability that someone in the population has smallpox is 0.0011 (prior probability)
+
+-   The probability that someone in the population has chickenpox is 0.1 (prior probability)
+
+$$P(symptoms | chickenpox) = 0.8$$
+
+$$P(symptoms | smallpox) = 0.9$$
+
+$$P(chickenpox) = 0.1$$
+
+$$P(smallpox) = 0.0011$$ $$P(spots) = 0.081$$
+
+The posterior probabilities are defined as:
+
+$$\frac{P(symptoms|smallpox) \quad P(smallpox)}{P(symptoms)}$$
+
+Posterior Probability of Smallpox
+
+$$\frac{0.9 \times 0.001}{0.081} = 0.011$$
+
+Posterior probability of chickenpox
+
+$$\frac{0.8 \times 0.1}{0.081} = 0.977$$
+
+While a patient presenting with symptoms appears to be more consistent with smallpox, the background rate of chickenpox in the population is higher than smallpox, which makes it more likely that the patient has chickenpox.
+
+## Cancer Example
+
+Assume that 1% of women over 50 have breast cancer.
+
+90% of women who have breast cancer test positive on mammograms.
+
+8% of women who do not have breast cancer test positive on mammograms.
+
+We would like to know what is the probability of having breast cancer given a positive test.
+
+Define B = breast cancer, A = positive test
+
+Recall Bayes' Theorem is:
+
+$$P(A|B) = \frac{P(A) \, P(B|A)}{P(B)}$$
+
+$$P(B|A) = \frac{P(A|B) \, P(B)}{P(A)} = \frac{P(B \cap A)}{P(A)}$$
+
+$$P(B|A) = \frac{P(A|B) \, P(B)}{P(A)} = \frac{P(B \cap A)}{P(A)}$$
+
+We now need to determine $P(B \cap A)$ or
+
+$$P(B \cap A) = P(A | B) \times P(B) = 0.9 \times 0.01 = 0.009$$
+
+$$P(B|A) = \frac{P(A|B) \, P(B)}{P(A)} = \frac{P(B \cap A)}{P(A)} = \frac{0.009}{0.0982} = 0.09$$
+
+In other words, if a woman has a positive test result, she has a 9% probability of having cancer.
+
+What would happen if the false positive rate was lowered to 1%?
+
+-   All the information remains the same except $P(A | B^C) = 0.01$.
+
+-   What happens to the probability of having a positive test?
+
+$$P(A) = P(B \cap A) + P(B^C \cap A)$$
+
+$$P(B \cap A) = P(B) \times P(A | B) = 0.01 \times 0.9 = 0.009$$
+
+$$P(B^C \cap A) = P(B^C) \times P(A | B^C) = 0.99 \times 0.01 = 0.0099$$
+
+$$P(A) = P(B \cap A) + P(B^C \cap A) = 0.009 + 0.0099 = 0.0189$$
+
+We can now see what happens
+
+$$P(B|A) = \frac{P(A|B) \, P(B)}{P(A)} = \frac{P(B \cap A)}{P(A)} = \frac{0.009}{0.0189} = 0.476$$
+
+Lowering the rate of false positives increases the probability that, if you have a positive test, that you have breast cancer.

@@ -1,0 +1,222 @@
+---
+title: "Introduction to R"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(lubridate, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+
+```
+
+## Why use R and RStudio?
+
+We will use **R** and **RStudio** extensively in this class. You will also use these programs extensively in the following classes on the econometrics sequence.
+
+A frequently asked question is "why can't we use Excel?"
+
+The simple answer is that Excel is good for some things but R is better for the things we want to do in this and other classes.
+
+Writing code (programming) allows for:
+
+-   **Reproducibility** (code provides transparency to processes)
+
+-   **Customization** (many solutions to a problem)
+
+-   **Automation** (code once, run many times)
+
+-   **Accountability** (the programmer is responsible for what the code does)
+
+Other programs have lower fixed costs than R. These programs, whether Excel, SAS, SPSS, or TSP, have 'built in' functions and interfaces that allow 'easier entry' than R. In other words, you will invest less time to learn how to start working in other programs than R.
+
+So, why then use R? First, coding is like learning a second language. It takes a while to learn the logic and 'flow' of the programming language. Second, unlike many other programs, you have a very good idea of what R is doing. If you write code, you learn where data come from, how they are formatted, the properties of data, and you gain a much deeper understanding of the process by which you arrive at an answer.
+
+Another strength of this approach is that once you learn to code in R and use RStudio, your marginal cost of learning Python, C++, or SQL is lower because the logic behind each of these languages is similar.
+
+*Simply put, coding is as much about the journey as the destination.*
+
+## R and RStudio: An Introduction
+
+You will need to install **R** and **RStudio**.
+
+Each is a piece of software. R is the 'engine' and RStudio is the interface.
+
+You can work with R directly, but RStudio makes the process less painful.
+
+R is the statistical software package that we will use throughout the course.
+
+RStudio is an interface that makes using R much easier.
+
+**You should first install R and then install RStudio.**
+
+## Downloading R
+
+-   Select the link to access: [**The R Project for Statistical Computing**](https://www.r-project.org/)
+-   Select the correct operating system to download and install R.
+
+## Downloading RStudio
+
+-   Select the link to access and download: [**RStudio**](https://posit.co/download/rstudio-desktop/)
+
+-   Note how Posit tells you to install R and then RStudio.
+
+-   You can also use [**Posit Cloud**](https://posit.cloud/) from Posit.
+
+## Tutorials in R
+
+There are numerous tutorials online on how to use R.
+
+Some overviews that might be helpful:
+
+-   [The Big Book of R](https://www.bigbookofr.com/)
+
+-   [Getting Started with R](https://rfortherestofus.com/courses/getting-started/)
+
+-   [R Programming for Beginners](https://youtu.be/fDRa82lxzaU)
+
+-   [R Programming Tutorial](https://youtu.be/_V8eKsto3Ug)
+
+## How to Get Better at Coding
+
+No coder works alone. Everyone (and yes, I mean everyone) relies on the expertise of others to code.
+
+**What does this mean?**
+
+When you are working on code, try it yourself first. If something doesn't work, look for small typos.
+
+You can then start asking other resources for help.
+
+**Artificial Intelligence (AI)** is helpful to debug code. It can even write code for you, if you know what you are doing.
+
+*Remember, however, that AI is only as good as its algorithm and your prompt. It can (and will) give you answers that are incorrect, answers that appear correct but are wrong, or lead you through solution paths that are inefficient.*
+
+**Coding is a dance between what you know and what you can find. The more that you do on your own, the better you will be able to use AI to help you improve (not write) your code.**
+
+## Opening RStudio
+
+![Screenshot of RStudio in Windows](images/rstudio-desktop.jpg){fig-alt="Screenshot of RStudio in Windows"}
+
+When you open RStudio for the first time, you will see four panels like in the above image. It is likely that your version of RStudio has a white background with blue or black text.
+
+If you would like to change this, go to “Tools \> Global Options… \> Appearance \> Editor theme”.
+
+You can choose a darker theme, or leave it a lighter theme.
+
+The four panels are as follows:
+
+-   Top Left: **Source** – This is where you will write the R code you want to save. In other words, this is where you write and save your work, usually called R scripts (.R files).
+
+-   Bottom Left: **Console** – When you execute (or *run*) code, you will usually see output here. This is also a place you can write code you do not want to be part of your final script. If you were a painter, the **Source** panel would be your canvas and the **Console** would be your [palette](https://upload.wikimedia.org/wikipedia/commons/0/04/Oil_painting_palette.jpg).
+
+-   Top Right: **Environment** – Here is where we will be able to see all the objects (data, etc.) that we are working with in the moment. To clear your environment, use the code `rm(list = ls())`.
+
+-   Bottom Right: **Output** – This is mostly where you will see plots you have generated, but can also see files on your computer, packages you have installed, and “Help” for certain functions.
+
+![Screenshot of Rstudio with panel labels.](images/rstudio-fourpanel.jpg){fig-alt="Screenshot of Rstudio with panel labels."}
+
+## Packages in R
+
+One of the most powerful features of R is that there are numerous packages or add-ons to base R that provide additional functionality. We need to install these packages and then include them so they are accessible to R as we work with data.
+
+If you need to install a package, you can always use the **install.packages** command. For example, you could use **install.packages("dplyr")** to install the **dplyr** package.
+
+Once a package is installed, you typically will not need to re-install it. You may need to update your packages, however, and this can be easily done. You can either use the function **update.packages** or update packages through the packages menu in RStudio.
+
+In the following code, we clear the workspace (essentially erasing working memory) and load three packages.
+
+First, we clear memory with the command **rm(list = ls())**.
+
+Second, we load the packages into memory by using the **library** statement.
+
+For example, **library(dplyr)** loads the dplyr package so we can use its functions later in our code. Note, that if you have not installed the dplyr package, the code will not run.
+
+To learn more about each package, see the following links.
+
+-   [dplyr](https://dplyr.tidyverse.org/)
+
+-   [ggplot2](https://ggplot2.tidyverse.org/articles/ggplot2.html)
+
+-   [lubridate](https://lubridate.tidyverse.org/)
+
+-   [tidyverse](https://www.tidyverse.org/)
+
+-   [kable](https://cran.r-project.org/web/packages/kableExtra)
+
+```{r, message = FALSE}
+
+#Clear the Workspace
+
+rm(list = ls())
+
+#Load packages
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(tidyverse)
+library(kableExtra)
+
+```
+
+To do this in RStudio, first install the above packages and then use the following steps
+
+-   Open RStudio
+
+-   Select File \| New File \| R Script
+
+-   Copy the code above and paste it into your script file
+
+-   Click on "Run" or Use CTRL+SHIFT+ENTER
+
+![Screenshot of Rstudio with package code](images/rstudio-loadpackages.jpg){fig-alt="Screenshot of Rstudio with package code"}
+
+## WebR
+
+We can use **WebR** to provide **dynamic** examples of code. The WebR code chunks appear different than the static code chucks.
+
+As you can see below, you can run the WebR code in your browser. You can add, subtract, or change the code chunk entirely.
+
+In this example, we first clear the memory, then we do three operations
+
+-   Add 5 and 13 or $(5 + 13)$
+
+-   Multiply 5 and 13 or $(5 \times 13)$
+
+-   Divide 5 by 13 or $\frac{5}{13}$
+
+-   Raise 5 to the 5th power or $5^{5}$
+
+-   Take the square root of 52 or $\sqrt{64}$
+
+```{webr-r}
+
+#Clear the Workspace
+
+rm(list = ls())
+
+#Simple math examples
+
+5 + 13
+5 * 13
+5 / 13
+5 ^ 5
+sqrt(64)
+
+```
+
+In the next section, we will explore how to create variables in R and how to assign values to variables.

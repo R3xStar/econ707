@@ -1,0 +1,860 @@
+---
+title: "Hypothesis Testing: Variance"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Difference in Means
+
+Let $\mu_1$ denote the mean of population 1.
+
+let $\mu_2$ denote the mean of population 2.
+
+Assume that we have two **independent random samples** that produce
+$\bar{x_1}$ and $\bar{x_2}$.
+
+The point estimator for the difference between $\mu_1$ and $\mu_2$ is:
+
+$$\bar{x}_1- \bar{x}_2$$
+
+If $\sigma_1^2$ and $\sigma_2^2$ are known, the standard error of the
+point estimator is:
+
+$$\sigma(\bar{x}_1 -\bar{x}_2) = \sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}$$
+The interval estimate for the difference between two population means
+when the population variances are known:
+
+$$(\bar{x}_1 - \bar{x}_2) \pm z_{\alpha/2} \times \sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}$$
+
+## Difference Example
+
+We know that $\sigma_1 = 3$ and $\sigma_2 = 6$
+
+Assume we sample the populations independently and randomly by taking
+200 observations from each population.
+
+We can construct the point estimate of the difference of the population
+means.
+
+We can also construct the interval estimate (or margin of error) around
+this point estimate.
+
+We specify that $\alpha = 0.05$.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+pop_1 <- rnorm(10000, mean = 50.5, sd = 3)
+pop_2 <- rnorm(5000, mean = 47.5, sd = 6)
+
+xbar_1 <- mean(sample(pop_1, 500))
+xbar_2 <- mean(sample(pop_2, 200))
+
+diff <- xbar_1 - xbar_2
+
+std_err <- sqrt((9/500) + (36/200))
+
+interval = xbar_1 - xbar_2
+moe = qnorm(.975,0,1)*std_err
+
+int_lower = interval - qnorm(.975,0,1)*std_err
+int_upper = interval + qnorm(.975,0,1)*std_err
+
+means <- data.frame(xbar_1, xbar_2, diff, std_err,
+                    moe, int_lower, int_upper)
+
+kable(means,
+      align     = "ccccccc",
+      caption   = "Interval Estimation",
+      col.names = c("Xbar(1)", "Xbar(2)", 
+                    "Xbar(1)-Xbar(2)",
+                    "Std. Error", "MOE", 
+                    "Lower Bound", "Upper Bound")) %>%
+  kable_styling(font_size = 11)
+
+```
+
+## Difference in Means
+
+Let $n_1$ and $n_2$ be samples used to estimate $\bar{x}_1$ and
+$\bar{x}_2$ and $\sigma_1$ and $\sigma_2$ are the population standard
+deviations for the two independent random samples.
+
+Let $D_0 = \mu_1 - \mu_2$ be the hypothesized difference between the
+population means under $H_0$.
+
+The test-statistic for testing hypotheses regarding the difference
+between two population means when $\sigma_1$ and $\sigma_2$ are known
+is:
+
+$$z = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}}$$
+
+Given a level of significance, $\alpha$, we can obtain the **critical
+value(s)** of the test statistic.
+
+If it is a one-tailed test, then we use $\alpha$ to obtain the test
+statistic.
+
+If it is a two-tailed test, then we use $\alpha/2$ to obtain the test
+statistic.
+
+## Difference Example
+
+Consider the following hypothesis test with $\alpha = 0.05$.
+
+$$H_0: \mu_1 - \mu_2 = 0$$
+
+$$H_a: \mu_1 - \mu_2 \ne 0$$
+
+Let $n_1 = 50$, $\bar{x}_1 = 19.4$, $\sigma_1 = 2$ and $n_2 = 25$,
+$\bar{x}_2 = 20.5$, $\sigma_2 = 4$.
+
+$$z = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}} = \frac{(19.4 - 20.5) - 0}{\sqrt{\frac{2^2}{50} + \frac{4^2}{25}}} = \frac{-1.1}{0.8485} = -1.2964$$
+
+For a two-tailed test, the critical value of the test statistic is
+$z_c =$ `r qnorm(0.025,0,1)`.
+
+We fail to reject $H_0$ at the 5% level of statistical significance as
+
+$$z = -1.2964 > -1.96 = z_c$$
+
+We can use **pnorm** as $P(z \le -1.2964) = 0.0974$ and fail to reject
+$H_0$ since:
+
+$$P(z \le -1.2964) = 0.0974 > 0.025 = P(z < -1.96)$$
+
+## Difference Example
+
+Consider the following hypothesis test with $\alpha = 0.01$.
+
+$$H_0: \mu_1 - \mu_2 \ge 0$$
+
+$$H_a: \mu_1 - \mu_2 \le 0$$
+
+Let $n_1 = 25$, $\bar{x}_1 = 18.4$, $\sigma_1 = 4$ and $n_2 = 50$,
+$\bar{x}_2 = 20.8$, $\sigma_2 = 3$.
+
+$$z = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{\sigma_1^2}{n_1} + \frac{\sigma_2^2}{n_2}}} = \frac{(18.4 - 20.8) - 0}{\sqrt{\frac{4^2}{25} + \frac{3^2}{50}}} = \frac{-2.4}{0.9055} = -2.6504$$
+
+For a one-tailed test, the critical value of the test statistic is
+-2.3264.
+
+We reject $H_0$ at the 1% level of statistical significance as
+
+$$z = -2.6504 < -2.3264 = z_c$$
+
+We can use **pnorm** as $P(z \le -2.6504)$ and reject $H_0$ since:
+
+$$P(z \le -2.6504) = 0.004 < 0.01 = P(z < -2.3264)$$
+
+## Unknown Variance
+
+Let $n_1$ and $n_2$ be samples used to estimate $\bar{x}_1$ and
+$\bar{x}_2$. The population standard deviations for the two independent
+random samples are unknown.
+
+We assume that $s_1$ and $s_2$ are unbiased estimators of the population
+standard deviations.
+
+Let $D_0 = \mu_1 - \mu_2$ be the hypothesized difference between the
+population means under $H_o$.
+
+The test-statistic for testing hypotheses regarding the difference
+between two population means when $\sigma$ is unknown is:
+
+$$t = \frac{(\bar{x}_1 - \bar{x}_2) - D_0}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}$$
+
+Given a level of significance, $\alpha$, we can obtain the **critical
+value** of the test statistic.
+
+If it is a one-tailed test, then we use $\alpha$ to obtain the test
+statistic.
+
+If it is a two-tailed test, then we use $\alpha/2$ to obtain the test
+statistic.
+
+## Hypothesis Test in R
+
+Assume that we observe pressure readings for two pipes which are
+independent of each other.
+
+We want to know whether the mean pressure readings for pipes are
+different.
+
+We do not observe $\sigma_1$ or $\sigma_2$.
+
+We can use the **t.test** function in R.
+
+We find that $t = -0.14751$.
+
+We fail to reject the null hypothesis that the population means are
+equal.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+pressure_1 <- c(110, 132, 138, 98, 122, 190, 92, 105, 104, 148, 
+              83, 193, 132, 114, 192, 183, 100, 99, 111, 123, 
+              130, 194, 141, 138, 98, 94, 97, 128, 105, 108, 
+              193, 85, 80, 132, 134, 148, 192)
+
+pressure_2 <- c(140, 112, 98, 98, 192, 190, 93, 125, 144, 146, 
+              87, 195, 112, 124, 132, 185, 102, 139, 101, 125, 
+              123, 144, 123, 108, 128, 114, 107, 134, 115, 88, 
+              143, 124, 120, 135, 121, 168, 172)
+
+# Manual T-Test, H0: mu(1)-mu(2) = 0
+
+xbar_1 <- mean(pressure_1)
+xbar_2 <- mean(pressure_2)
+
+diff <- xbar_1 - xbar_2 - 0
+
+denom <- sqrt((var(pressure_1)/length(pressure_1)) + 
+                (var(pressure_2)/length(pressure_2)))
+
+t_man <- diff/denom
+
+# Generated T-Test
+t_calc <- t.test(pressure_1, pressure_2, mu = 0)
+
+means <- data.frame(xbar_1, xbar_2, diff, 
+                    t_man, t_calc$statistic, 
+                    t_calc$parameter, t_calc$p.value)
+
+kable(means,
+      align     = "ccccccc",
+      caption   = "Hypothesis Testing",
+      col.names = c("Xbar(1)", "Xbar(2)", 
+                    "Xbar(1)-Xbar(2)",
+                    "T-Manual", "T-Calculated", 
+                    "Degrees Freedom", "P-Value")) %>%
+  kable_styling(font_size = 11)
+
+
+```
+
+## Hypothesis Test in R
+
+Assume that we observe pressure readings for two pipes which are
+independent of each other.
+
+We want to know whether $\mu_1 - \mu_2 > 0$.
+
+We do not observe $\sigma_1$ or $\sigma_2$.
+
+We can use the **t.test** function in R.
+
+We find that $t = 3.75$ and $P(t < T_c) = 0.0003$.
+
+We reject the null hypothesis that $\mu_1 - \mu_2 \le 0$ at the 1% level
+of statistical significance.
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+pressure_3 <- c(210, 32, 238, 198, 322, 290, 192, 105, 204, 248, 
+              83, 103, 232, 114, 192, 283, 200, 99, 111, 193, 
+              150, 94, 241, 238, 198, 194, 197, 128, 215, 108, 
+              133, 185, 180, 141, 234, 48, 92, 281, 47, 290)
+
+pressure_4 <- c(140, 112, 98, 98, 192, 190, 93, 125, 144, 146, 
+              87, 195, 112, 124, 132, 185, 102, 139, 101, 125, 
+              123, 144, 123, 108, 128, 114, 107, 134, 115, 88, 
+              143, 124, 120, 135, 121, 168, 172, 129, 103)
+
+# Manual T-Test, H0: mu(1)-mu(2) > 0
+
+xbar_3 <- mean(pressure_3)
+xbar_4 <- mean(pressure_4)
+
+diff <- xbar_3 - xbar_4 - 0
+
+denom <- sqrt((var(pressure_3)/length(pressure_3)) + 
+                (var(pressure_4)/length(pressure_4)))
+
+t_man <- diff/denom
+
+# Generated T-Test
+t_calc <- t.test(pressure_3, pressure_4, 
+                 alternative = "greater", mu = 0)
+
+means <- data.frame(xbar_3, xbar_4, diff, 
+                    t_man, t_calc$statistic, 
+                    t_calc$parameter, t_calc$p.value)
+
+kable(means,
+      align     = "ccccccc",
+      caption   = "Hypothesis Testing",
+      col.names = c("Xbar(1)", "Xbar(2)", 
+                    "Xbar(1)-Xbar(2)",
+                    "T-Manual", "T-Calculated", 
+                    "Degrees Freedom", "P-Value")) %>%
+  kable_styling(font_size = 11)
+
+```
+
+## Chi-Squared Distribution
+
+Let $x_1, x_2, \dots, x_n$ be $n$ identically and independently
+distributed random variables such that $x_i \sim N(\mu,\sigma)$.
+
+Let $\sigma_1, \sigma_2, \dots, \sigma_n$ be the standard deviations of
+$x_1, x_2, \dots, x_n$.
+
+Consider the following two measures about the sample data and its
+relationship with the population parameters:
+
+$$R = \sum_{i=1}^n \frac{(x_i - \mu)}{\sigma_i} \sim N(0,1)$$
+
+$$V = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma_i^2} \sim \chi^2(k)$$
+
+**R** is the sum of $n$ standard normal variables and is distributed
+normally.
+
+**V** is the sum of $n$ squared standard normal variables and is
+distributed $\chi^2$ with $k$ degrees of freedom.
+
+## Chi-Square Distribution
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+library(ggplot2)
+
+ggplot(data.frame(x = c(-10, 10)), 
+       aes(x = x)) +
+stat_function(fun = dchisq, 
+              args = list(df = 1),
+              linewidth = 1.2) +
+stat_function(fun = dnorm, 
+              args = list(mean = 0, sd = 1),
+              linewidth = 1.2,
+              color = "red") +
+theme_minimal() +
+labs(x = "x",
+     y = "P(x)",
+     title = "Standard Normal and Chi-Squared Distribution",
+     subtitle = "1 degree of freedom")
+```
+
+```{r, out.height="75%", out.width="75%"}
+
+library(ggplot2)
+
+ggplot(data.frame(x = c(-30, 30)), 
+       aes(x = x)) +
+stat_function(fun = dchisq, 
+              args = list(df = 10),
+              linewidth = 1.2) +
+stat_function(fun = dnorm, 
+              args = list(mean = 0, sd = 1),
+              linewidth = 1.2,
+              color = "red") +
+theme_minimal() +
+labs(x = "x",
+     y = "P(x)",
+     title = "Chi-Squared Distribution",
+     subtitle = "10 degrees of freedom")
+
+```
+
+## Chi-Squared Distributions
+
+Let $x$ be the value of **V** for which we seek the probability or:
+
+$$V = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma_i^2} \sim \chi^2$$
+
+The probability density function of the $\chi^2$ distribution is:
+
+$$f(x;k) = \frac{1}{2^{(k/2)} \, \Gamma(k/2)} x^{(k/2)-1} e^{-x/2}, \quad 0 \le \chi^2 \le 1$$
+
+Where $\Gamma$ is the Gamma function and
+
+$$\Gamma(z) = \int_{0}^{\infty} x^{z-1} \, e^{-x} dx, \quad x > 0$$
+
+$$\Gamma(n) = (n-1)! \quad \text{for any positive integer} \, n$$
+
+## Chi-Squared Properties
+
+Given $x_1, x_2, \dots, x_n$ random variables with
+$x_i \sim N(0,\sigma^2)$, then
+
+$$V = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma_i^2} \sim \chi^2(k)$$
+
+Given $n$ and $k = n-1$, then the mean of $\chi^2(k)$ is:
+
+$$\mu(\chi^2) = k$$
+
+The variance and standard deviation of $\chi^2(k)$ is:
+
+$$var(\chi^2) = 2 \times k$$
+
+$$sd(\chi^2) = \sqrt{2 \times df}$$
+
+The $\chi^2$ distribution is non-symmetrical and skewed right.
+
+There is a different $\chi^2$ curve for each degree of freedom $k$.
+
+## Chi-Squared Examples
+
+Let $Y$ have a chi-square distribution with 15 degrees of freedom.
+
+What is $P(Y \le y_0) = 0.025$?
+
+What is $P(Y \ge y_0) = 0.05$?
+
+What is $P(Y \le 15.23)$?
+
+What is $P(Y \ge 22.307)$?
+
+We can use the $\chi^2$ tables.
+
+**pchisq** is the CDF for $\chi^2$ in R
+
+**qchisq** is the inverse CDF in R
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+k = 15
+
+#P(Y < y0) = 0.025
+#Lower.tail = TRUE since area to left of y_0
+
+q_1 <- qchisq(0.025, 15, lower.tail = TRUE)
+
+#P(Y > y0) = 0.05
+#Lower.tail = FALSE since area to left of y_0
+
+q_2 <- qchisq(0.05, 15, lower.tail = FALSE)
+
+#P(Y < 15.23) = p
+#Lower.tail since area of the left of 15.23
+
+q_3 <- pchisq(15.23, 15, lower.tail = TRUE)
+
+#P(Y > 22.307) = p
+
+q_4 <- pchisq(23.307, 15, lower.tail = FALSE)
+
+qchi <- data.frame(k, q_1, q_2, q_3, q_4)
+
+kable(qchi,
+      align     = "ccccc",
+      caption   = "Chi-Squared Examples",
+      col.names = c("k", "P(y < y0) = 0.025", 
+                    "P(y > y0) = 0.05",
+                    "P(y < 15.23)", "P(y > 23.307)")) %>%
+  kable_styling(font_size = 11)
+
+
+```
+
+## Chi-Squared Examples
+
+Typically $\chi^2_{\alpha}$ denotes the value for the $\chi^2$
+distribution that provides an area or probability of $\alpha$ to the
+**right** of the $\chi^2_\alpha$ value.
+
+Let $X$ have a chi-square distribution with 19 degrees of freedom.
+
+What is $P(X \ge x_0) = 0.025$?
+
+In other words, what $\chi^2$ value is such that 2.5% of the
+observations lie to the **right** of it?
+
+What is $P(X \ge x_0) = 0.95$?
+
+In other words, what $\chi^2$ value is such that 95% of the observations
+lie to the **right** of it?
+
+```{r, message = FALSE, warning = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+alpha_1 = 0.025
+alpha_2 = 0.95
+df_1 = 19
+
+#Obtain chi-squared value for which 2.5% of obs lie to the right
+#Use alpha and lower.tail = FALSE 
+#Use (1-alpha) and lower.tail = TRUE
+
+q_5 <- qchisq(alpha_1, df_1, lower.tail = FALSE)
+q_6 <- qchisq(1-alpha_1, df_1, lower.tail = TRUE)
+
+#Obtain chi-squared value for which 95% of obs lie to the right
+#Use alpha and lower.tail = FALSE 
+#Use (1-alpha) and lower.tail = TRUE
+
+q_7 <- qchisq(alpha_2, df_1, lower.tail = FALSE)
+q_8 <- qchisq(1-alpha_2, df_1, lower.tail = TRUE)
+
+qchi2 <- data.frame(df_1, q_5, q_6, q_7, q_8)
+
+kable(qchi2,
+      align     = "ccccc",
+      caption   = "Chi-Squared Examples",
+      col.names = c("k", "P(X > x0) = 0.025", 
+                    "P(X < x0) = 0.975",
+                    "P(X > x0) = 0.95", "P(X < x0) = 0.05")) %>%
+  kable_styling(font_size = 11)
+
+
+```
+
+## Variance Inferences
+
+Recall that the sample variance $s^2$ is the point estimator of the
+population variance $\sigma^2$.
+
+Recall that the sample variance is equal to:
+
+$$s^2 = \frac{\sum_{i=1}^n (x_i - \bar{x})^2}{n-1}$$
+
+To make inferences about the population variance, we need to know the
+sampling distribution of:
+
+$$\frac{(n-1)s^2}{\sigma^2}$$
+
+We will find that sampling distribution is $\chi^2$ with $k$ degrees of
+freedom.
+
+We can use the $\chi^2$ distribution to develop interval estimates and
+conduct hypothesis tests about a population variance.
+
+## Sampling Distribution
+
+To begin, let $y_i = x_i - \mu$ which implies that
+$\bar{y} = \bar{x} - \mu$ since $\bar{u} = \mu$ and:
+
+$$(y_i - \bar{y}) = (x_i - \mu) - (\bar{x} - \mu) = x_i - \mu - \bar{x} + \mu = (x_i - \bar{x})$$
+
+Rearranging $s^2$ yields:
+
+$$s^2 = \frac{\sum_{i=1}^n (x_i - \bar{x})^2}{n-1}$$
+
+$$(n-1) s^2 = \sum_{i=1}^n (x_i - \bar{x})^2 = \sum_{i = 1}^n (y_i - \mu)^2$$
+
+$$(n-1) s^2 = \sum_{i = 1}^n(y_i^2 - 2 y_i \bar{y} + \bar{y}^2) = \sum_{i=1}^n y_i^2 - 2\bar{y}\sum_{i=1}^n Y_i + \sum_{i=1}^n \bar{y}^2$$
+
+Recall that $\sum y_i = n \bar{y}$ and $\sum \bar{y} = n\bar{y}$ so
+
+$$(n-1) s^2 = \sum_{i=1}^n y_i^2 - (2n \bar{y}  + n \bar{y}^2) = \sum_{i=1}^n y_i^2 - n\bar{y}^2$$
+
+Substituting back $y_i = x_i - \mu$ yields:
+
+$$(n-1) s^2 = \sum_{i=1}^n (x_i - \mu)^2 - n(\bar{x} - \mu)^2$$
+
+Dividing through by $\sigma^2$ and rearranging
+
+$$\frac{(n-1) s^2}{\sigma^2} = \sum_{i=1}^n \frac{(x_i - \mu)^2}{\sigma^2} - \frac{n(\bar{x} - \mu)^2}{\sigma^2}$$
+
+$$\sum_{i=1}^n \bigg[\frac{(x_i - \mu)}{\sigma}\bigg]^2 = \frac{(n-1) s^2}{\sigma^2} + \bigg[\frac{(\bar{x} - \mu)}{\sigma/\sqrt{n}}\bigg]^2$$
+
+The left hand side is the sum of the squares of $n$ independent standard
+normal variables.
+
+The second term on the right hand side is the square of a single
+standard normal variable.
+
+If $s^2$ and $\bar{x}$ are independent, then the first term on the right
+hand side must have the same distribution as the left hand side.
+
+Each term thus has the same distribution: $\chi^2$ with $k$ degrees of
+freedom.
+
+## Interval Estimation - Variance
+
+Given that
+
+$$\frac{(n-1) s^2}{\sigma^2} \sim \chi^2(k)$$
+
+Given $\alpha$, we can find the interval in which $\alpha$ of
+$(n-1)s^2/ \sigma^2$ lie or:
+
+$$\chi_{\alpha/2}^2 \le \frac{(n-1) s^2}{\sigma^2} \le \chi_{(1-\alpha/2)}^2$$
+
+Rearranging, we obtain the confidence interval estimate for $\sigma^2$
+or:
+
+$$\frac{(n-1)s^2}{\chi_{\alpha/2}^2} \le \sigma^2 \le \frac{(n-1)s^2}{\chi_{(1-\alpha/2)}^2}$$
+
+The $\chi^2$ values are based on a $\chi^2$ distribution with $k$
+degrees of freedom.
+
+-   $(1-\alpha)$ is the confidence coefficient for the interval
+    estimate.
+
+## Example
+
+Assume that we collect a sample of 100 individuals from a population.
+
+The sample standard deviation of individual income is \$200.
+
+We want to construct a 90% confidence interval for $\sigma^2$ so
+$\alpha = 0.1$
+
+There are $(n-1) = k = 99$ degrees of freedom for the $\chi^2$
+statistic.
+
+$\chi^2_{0.05}(99) =$ `r qchisq(0.05, 99, lower.tail = FALSE)`
+
+$\chi^2_{0.95}(99) =$ `r qchisq(0.95, 99, lower.tail = FALSE)`
+
+The 90% confidence interval is:
+
+$$\frac{(n-1)s^2}{\chi_{\alpha/2}^2} \le \sigma^2 \le \frac{(n-1)s^2}{\chi_{(1-\alpha/2)}^2}$$
+
+$$\frac{99*40000}{123.23} \le \sigma^2 \le \frac{99*4000}{77.046}$$
+
+$$51397.64 \le \sigma^2 \le 32136.28$$
+
+## R Example
+
+We collect salaries (in millions) on 10 managers.
+
+The average salary is 1.47 million.
+
+The sample variance is 0.767 million
+
+Let $\alpha = 0.05$
+
+Use **qchisq** to find the $\chi^2$ value for $(n-1)$ degrees of freedom
+at $\alpha/2$ and $(1-\alpha/2)$
+
+95% confidence interval for $\sigma^2$ is \[0.363, 2.556\]
+
+```{r}
+
+salaries <- c(2.2, .5, 2.4, 2.7, 2.0, 1.5, 1.3, 1.5, .3, .3)
+
+avg_sal <- mean(salaries)
+var_sal <- var(salaries)
+sd_sal <- sd(salaries)
+n = length(salaries)
+
+alpha = 0.05
+
+lower <- ((n-1)*sd_sal^2) / qchisq(1-(alpha/2), n-1)
+upper <- ((n-1)*sd_sal^2) / qchisq((alpha/2), n-1)
+
+vars <- data.frame(n, avg_sal, var_sal, alpha, lower, upper)
+
+kable(vars,
+      align     = "cccccc",
+      caption   = "Variance Interval",
+      col.names = c("n", "Xbar", 
+                    "s^2",
+                    "alpha", "Lower Bound", 
+                    "Upper Bound")) %>%
+  kable_styling(font_size = 11)
+
+```
+
+## Hypothesis Testing
+
+We obtain a random sample of 29 bus arrivals at a station and
+$s^2 = 4.2$.
+
+Management argues the variance in arrival times is less than 4 minutes
+or:
+
+$$Ho: \sigma^2 \ge 4$$
+
+$$Ha: \sigma^2 < 4$$
+
+The test statistic for a hypothesis tests about a population variance
+is:
+
+$$\chi^2(k) = \frac{(n-1) \, s^2}{\sigma_0^2}$$
+
+$$\chi^2(28) = \frac{(29 - 1) \, 4.2}{4.0} = 29.4$$
+
+We can use **pchisq** to find $P(X \ge 29.4) =$
+`r pchisq(29.4, 28, lower.tail = FALSE)`
+
+Since $P(X \ge 29.4) = 0.392$ we fail to reject the null hypothesis that
+$\sigma \le 4$.
+
+There is insufficient empirical evidence to support the argument that
+the variance of arrival times is less than 4 minutes.
+
+## R Example
+
+Using data on manager salaries.
+
+The average salary is 1.65 million.
+
+The sample variance is 1.35 million
+
+Find the 90% confidence interval.
+
+Test the hypothesis that $\sigma^2 = 1.45$
+
+90% confidence interval for $\sigma^2$ is \[0.85,2.53\]
+
+We fail to reject the null hypothesis that $\sigma^2 = 1.45$
+
+```{r}
+
+salaries <- c(2.2, .5, 2.4, 2.7, 2.0, 1.5, 1.3, 1.5, .3, .3,
+              3.5, 1.2, 4.5, 0.2, 1.9, 1.3, 0.9, 0.4, 1.2, 3.1)
+
+avg_sal <- mean(salaries)
+var_sal <- var(salaries)
+sd_sal <- sd(salaries)
+n = length(salaries)
+sigma2_null = 1.45
+
+alpha = 0.1
+
+lower <- ((n-1)*sd_sal^2) / qchisq(1-(alpha/2), n-1)
+upper <- ((n-1)*sd_sal^2) / qchisq((alpha/2), n-1)
+
+chi_test <- ((n-1)*sd_sal^2)/sigma2_null
+chi_p <- pchisq(chi_test, n-1, lower.tail = FALSE)
+
+vars <- data.frame(n, avg_sal, var_sal, alpha, lower, upper,
+                   chi_test, chi_p)
+
+kable(vars,
+      align     = "cccccccc",
+      caption   = "Variance Interval and Test",
+      col.names = c("n", "Xbar", 
+                    "s^2",
+                    "alpha", "Lower Bound", 
+                    "Upper Bound", "Chi Test", "P(X > x)")) %>%
+  kable_styling(font_size = 11)
+
+```
+
+## Two Population Variances
+
+Whenever independent simple random samples of sizes $n_1$ and $n_2$ are
+selected for two normal populations with equal variances, the sampling
+distribution is an **F distribution** with $(n_1 - 1)$ degrees of
+freedom in the numerator and $(n_2 - 1)$ degrees of freedom in the
+denominator.
+
+Given $s_1^2$ and $s_2^2$ the sampling distribution is:
+
+$$\frac{s_1^2}{s_2^2} \sim F(n_1 - 1, n_2 - 1)$$
+
+Let $s_1^2$ be the population with the larger sample variance, then the
+test statistic for the equality of population variances is:
+
+$$F(n_1-1,n_2-1) = \frac{s_1^2}{s_2^2}$$
+
+## F Test Example
+
+Assume that $n_1 = 28$ and $s_1^2 = 48$
+
+Assume that $n_2 = 16$ and $s_2^2 = 20$
+
+Test whether $\sigma_1^2 = \sigma_2^2$
+
+Let $\alpha = .10$ so $\alpha/2 = 0.05$
+
+The calculated F-statistic is 2.4.
+
+The critical value at 5% is 2.28.
+
+We reject the null hypothesis that the variances are equal at the 5%
+level of statistical significance.
+
+```{r}
+
+n_1 <- 26
+s_1 <- 48
+
+n_2 <- 16
+s_2 <- 20
+
+alpha = .1
+
+f_crit <- qf(alpha/2, n_1-1, n_2-1, lower.tail = FALSE)
+
+f_stat <- s_1/s_2
+
+f_pvalue <- pf(f_stat, n_1 - 1, n_2-1, lower.tail = FALSE)
+
+vars <- data.frame(n_1, s_1, n_2, s_2, alpha, 
+                   f_stat, f_crit, f_pvalue)
+
+kable(vars,
+      align     = "cccccccc",
+      caption   = "F Test",
+      col.names = c("n1", "s1", "n2", "s2", 
+                    "alpha", "F Statistic", 
+                    "F Critical", "P(F > F)")) %>%
+  kable_styling(font_size = 11)
+
+
+
+```
+
+## Wrapping Up
+
+In this module, we explored hypothesis testing. We noted the differences
+between Type I and Type II errors and examined how to form one-tail and
+two-tailed hypothesis tests. We estimated critical statistics when the
+population variance is known and unknown. We then explored examples of
+different types of hypothesis tests in R.
+
+We then discussed how to conduct hypothesis tests for means, differences
+in mean, and variances. We introduced the Chi-Squared distribution and
+how it is used to make inferences regarding population variances. We
+also investigated how to use R to test hypotheses regarding two
+population variances and introduced the F-test.

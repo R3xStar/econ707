@@ -1,0 +1,18 @@
+---
+title: "Example1"
+editor: visual
+---
+
+This is an example Quarto file. You can write text here like a normal document.
+
+```{r}
+
+x <- 3
+y <- 6
+z <- 10
+
+x*y
+y*z
+x/z
+
+```

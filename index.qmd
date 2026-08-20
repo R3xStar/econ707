@@ -1,0 +1,132 @@
+---
+title: "ECON 707"
+---
+
+## Course Introduction
+
+<ul>
+
+<li><a href="about.qmd">Course Objectives and Materials</a></li>
+
+<li><a href="sitti.qmd">Meet Your Instructor</a></li>
+
+<li><a href="ECON-707-Syllabus.pdf">Syllabus</a></li>
+
+</ul>
+
+## Module 01 – Introduction to R and Descriptive Statistics
+
+<ul>
+
+<li><a href="mod-1-0-overview.qmd">Module 1.0 - Module 1 Overview</a></li>
+
+<li><a href="mod-1-1-intro-to-data.qmd">Module 1.1 - Data and the Challenge of Economic Analysis</a></li>
+
+<li><a href="mod-1-2-intro-to-r.qmd">Module 1.2 – Introduction to R</a></li>
+
+<li><a href="mod-1-3-intro-to-r-variables.qmd">Module 1.3 – Variables and Assignments in R</a></li>
+
+<li><a href="mod-1-4-intro-to-r-dataframes.qmd">Module 1.4 – Data frames in R</a></li>
+
+<li><a href="mod-1-5-quarto.qmd">Module 1.5 – Using Quarto</a></li>
+
+</ul>
+
+## Module 02 - Descriptive Statistics
+
+<ul>
+
+<li><a href="mod-2-0-overview.qmd">Module 2.0 - Module 2 Overview</a></li>
+
+<li><a href="mod-2-1-frequency.qmd">Module 2.1 – Frequency Distributions</a></li>
+
+<li><a href="mod-2-2-central.qmd">Module 2.2 – Measures of Central Tendency</a></li>
+
+<li><a href="mod-2-3-variance.qmd">Module 2.3 – Measures of Dispersion</a></li>
+
+<li><a href="mod-2-4-zscores.qmd">Module 2.4 – Z-Scores</a></li>
+
+</ul>
+
+## Module 03 – Covariance and Correlation
+
+<ul>
+
+<li><a href="mod-3-0-overview.qmd">Module 3.0 - Module 3 Overview</a></li>
+
+<li><a href="mod-3-1-skewness.qmd">Module 3.1 - Skewness</a></li>
+
+<li><a href="mod-3-2-normal.qmd">Module 3.2 - Chebyshev's Theorem</a></li>
+
+<li><a href="mod-3-3-correlation.qmd">Module 3.3 - Covariance and Correlation</a></li>
+
+</ul>
+
+## Module 04 - Introduction to Probability
+
+<ul>
+
+<li><a href="mod-4-0-overview.qmd">Module 4.0 - Module 4 Overview</a></li>
+
+<li><a href="mod-4-1-probability.qmd">Module 4.1 - Introduction to Probability</a></li>
+
+<li><a href="mod-4-2-rules.qmd">Module 4.2 - Probability Rules</a></li>
+
+<li><a href="mod-4-3-conditional.qmd">Module 4.3 - Conditional Probability</a></li>
+
+</ul>
+
+## Module 05 - Discrete Probability Distributions
+
+<ul>
+
+<li><a href="mod-5-0-overview.qmd">Module 5.0 - Module 5 Overview</a></li>
+
+<li><a href="mod-5-1-discrete.qmd">Module 5.1 - Discrete Random Variables</a></li>
+
+<li><a href="mod-5-2-binomial.qmd">Module 5.2 - Binomial Probability Distribution</a></li>
+
+<li><a href="mod-5-3-poisson.qmd">Module 5.3 - Poisson Probability Distribution</a></li>
+
+</ul>
+
+## Module 06 - Continuous Probability Distributions
+
+<ul>
+
+<li><a href="mod-6-0-overview.qmd">Module 6.0 - Module 6 Overview</a></li>
+
+<li><a href="mod-6-1-uniform.qmd">Module 6.1 - Uniform Probability Distributions</a></li>
+
+<li><a href="mod-6-2-normal.qmd">Module 6.2 - Normal Probability Distributions</a></li>
+
+<li><a href="mod-6-3-exponential.qmd">Module 6.3 - Exponential Probability Distributions</a></li>
+</ul>
+
+## Module 07 - Sampling Distributions
+
+<ul>
+
+<li><a href="mod-7-0-overview.qmd">Module 7.0 - Module 7 Overview</a></li>
+<li><a href="mod-7-1-sampling.qmd">Module 7.1 - Sampling</a></li>
+<li><a href="mod-7-2-central.qmd">Module 7.2 - Central Limit Theorem</a></li>
+<li><a href="mod-7-3-interval.qmd">Module 7.3 - Interval Estimation</a></li>
+
+</ul>
+
+## Module 08 - Inference
+
+<ul>
+
+<li><a href="mod-8-0-overview.qmd">Module 8.0 - Module 8 Overview</a></li>
+<li><a href="mod-8-1-hypothesis.qmd">Module 8.1 - Hypothesis Testing</a></li>
+<li><a href="mod-8-2-means.qmd">Module 8.2 - Hypothesis Testing: Means</a></li>
+<li><a href="mod-8-3-variance.qmd">Module 8.3 - Hypothesis Testing: Variance</a></li>
+
+</ul>
+
+------------------------------------------------------------------------
+
+<p>This site provides <strong>interactive and static examples</strong> for economic data analysis using R and WebR. Click on the links above to explore each module.</p>
+
+<p style="font-size:0.85em; color:#666;"><em>Course materials adapted from the ECON 700 course site by Robert M. McNab (Old Dominion University), <a href="https://robertmmcnab.github.io/econ700/">robertmmcnab.github.io/econ700</a>. Built with Quarto and WebR.</em></p>

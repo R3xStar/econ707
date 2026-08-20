@@ -1,0 +1,135 @@
+---
+title: "Skewness"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Defining Skewness
+
+In addition to measures of central tendency (population mean and sample average) and measures of dispersion (variance and standard deviation), we can investigate the **skew** of data.
+
+Are the data "shifted" to the left or right of the center? Are the data "clustered" around the measure of central tendency?
+
+**Skewness** measures the asymmetry of a probability distribution of a real-valued random variable around its mean. Skewness can be positive, negative, or undefined.
+
+For a distribution with a single peak, a *negative skew* implies that the tail is on the left side of the distribution. A *positive skew* implies that the tail is on the right side of the distribution. A *zero skew* implies that the tails 'balance' which may mean the distribution is symmetric.
+
+The **Fisher-Pearson standardized moment coefficient** is used by R and other major statistical software packages to measure skewness in a univariate sample. The sample skewness measure is equal to:
+
+$$G_1 = \frac{n}{(n-1)(n-2)}\sum_{i=1}^{n} \Big( \frac{x_i - \bar{x}}{s} \Big)^3$$
+
+## Skewness Example
+
+In the following example, we construct a vector of observations for the variables **x**, **y**, and **z**.
+
+We install and use the **moments** package to estimate skewness.
+
+The first vector, **x**, has a mean of 7 and a median of 7. The observations are symmetrically distributed around 7, that is, the mirror are 'reflected' around the mean.
+
+In a **perfectly symmetrical** distribution, the mean and median are the same. Note also that the estimate of skewness is equal to zero, that is, the tails of the distribution are symmetrical.
+
+The second vector, **y**, has a mean of 6.3 and a median of 6.5. The estimate of skewness is -0.613. The **negative skew** means that the tail of the left side of the distribution is longer than the tail on the right side of the distribution.
+
+*In other words, if skewness is negative, the mass of the distribution is concentrated to the right, that is, the left tail is longer.*
+
+The third vector, **z** has a mean of 7.214 and a median of 7.0. The estimate of skewness of is 0.442. The **positive skew** means that the right tail of the distribution longer.
+
+*In other words, if skewness is positive, the mass of the distribution is concentrated to the left, that is, the right tail is longer.*
+
+```{r, message = FALSE, results = 'hold'}
+
+rm(list = ls())
+
+#Use moments package for skewness
+
+library(dplyr)
+library(kableExtra)
+library(moments)
+
+# Define data vectors
+
+x <- c(4, 5, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 9, 10)
+
+y <- c(4, 5, 6, 6, 6, 7, 7, 7, 7, 8)
+
+z <- c(5, 6, 6, 6, 7, 7, 7, 7, 7, 8, 8, 8, 9, 10)
+
+x_stats <- tibble(name = 'X-Stats',
+                  mean   = mean(x),
+                  median = median(x),
+                  skew   = skewness(x))
+
+y_stats <- tibble(name = 'Y-Stats',
+                  mean   = mean(y),
+                  median = median(y),
+                  skew   = skewness(y))
+
+z_stats <- tibble(name = 'Z-Stats',
+                  mean   = mean(z),
+                  median = median(z),
+                  skew   = skewness(z))
+
+stats <- rbind(x_stats, y_stats, z_stats)
+
+kable(stats,
+      align     = 'c',
+      digits    = 3,
+      col.names = c('Source','Mean','Median','Skew')) %>%
+kable_classic()
+```
+
+## Interpreting Skewness
+
+Skewness is a measure of the symmetry of the data. Negative skewness generally implies that the mean is less than the median. Negative skewness means that the left tail of the data is longer than the right tail of the data. Positive skewness implies that the mean is greater than the median and implies that the right tail of the data are longer than the left tail of the data.
+
+If skewness is negative, the data are *left-skewed*.
+
+If skewness is positive, the data are *right-skewed*.[^mod-3-1-skewness-1]
+
+[^mod-3-1-skewness-1]: For an extended discussion, see Doane and Seward (2011), "Measuring Skewness: A Forgotten Statistic?" Available at: http://jse.amstat.org/v19n2/doane.pdf
+
+Following Bulmer (1979), the following rules of thumb are useful in interpreting skewness.
+
+-   If skewness is less than -1 or greater than 1, the data are **highly skewed**.
+
+-   If skewness is between -1 and -1/2 or between 1/2 and 1, the data are **moderately skewed**.
+
+-   If skewness is between -1/2 and 1/2, the data are **approximately symmetric**.
+
+-   If skewness is 0, the data are **perfectly symmetric**.
+
+At a minimum, the following points regarding the skewness measure can be made:
+
+-   The sign represents the direction of skewness.
+
+-   The measure compares to a symmetric distribution (i.e. the normal distribution).
+
+-   Values that are far from zero imply a non-normal or skewed population.
+
+-   The measure has an adjustment for sample size.
+
+-   In large samples, the adjustment is of little consequence.
+
+## Skewness Illustration
+
+![Relationship Between Mean, Median, and Mode](images/Relationship_between_mean_and_median_under_different_skewness.png){fig-alt="Relationship Between Mean, Median, and Mode"}
+
+By Diva Jain - <https://commons.wikimedia.org/w/index.php?curid=84219892>

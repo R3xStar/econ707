@@ -1,0 +1,472 @@
+---
+title: "Central Limit Theorem"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Unbiasedness
+
+An estimator of a population parameter is **unbiased** if the expected
+value of the estimator is equal to the value of the population
+parameter.
+
+More formally, the sample statistic $\hat{\theta}$ is an unbiased
+estimator of the population parameter $\theta$ if:
+
+$$E[\hat{\theta}] = \theta$$
+
+In other words, an estimator is unbiased if it produces parameter
+estimates that are, **on average**, equal to the population parameter.
+
+An estimator that is not unbiased is a **biased** estimator.
+
+The bias of an estimator is equal to its expected value minus the value
+of the population parameter or:
+
+$$
+Bias(\hat{\theta}) = E[\hat{\theta}] - \theta
+$$
+
+In other words, an estimator is unbiased if its bias is equal to zero.
+
+The sample average is an unbiased estimator of the population mean as:
+
+$$
+E[\bar{x}] = \mu
+$$
+
+It can be shown that the unadjusted sample variance is a biased
+estimator of the population variance or:
+
+$$
+E[S_n^2] = E[\frac{1}{n}\sum_{1}^{n}(X_i - \bar{X})^2] = \frac{n-1}{n}\sigma^2
+$$
+
+It can also be shown that the adjusted sample variance is an unbiased
+estimator of the population variance or:
+
+$$
+E[s^2] = E[\frac{1}{n-1}\sum_1^n(X_i - \bar{X})^2 ] = \sigma^2
+$$
+
+Why? When the population mean is unknown, we must estimate it with the
+sample average. We lose a **degree of freedom** as we employ an estimate
+instead of a parameter. The number of degrees of freedom is equal to the
+number of sample observations minus the number of parameters to be
+estimated.
+
+## Efficiency
+
+An **efficient estimator** has the smallest possible variance among all
+unbiased estimators.
+
+More formally, the sample statistic $\hat{\theta}$ is relatively
+efficient to $\hat{\hat{\theta}}$ when
+
+$$var(\hat{\theta}) < var(\hat{\hat{\theta}})$$
+
+## Consistency
+
+An estimator of a population parameter is **consistent** if it converges
+in probability to the true value of the parameter as the sample size
+tends to infinity.
+
+The sample statistic $\hat{\theta}$ is consistent when
+
+$$plim_{n \rightarrow \infty} \, \hat{\theta} \rightarrow \theta$$
+
+It can be shown, for example, that the sample mean converges almost
+surely to the mean, which implies that the sample mean converges in
+probability to the mean or:
+
+$$
+plim_{n \rightarrow \infty} \, \bar{X} \rightarrow \mu
+$$
+
+While the unadjusted variance estimator is biased and the adjusted
+variance estimator is unbiased, it can be shown that both estimators are
+consistent estimators of the population variance.
+
+$$
+plim_{n \rightarrow \infty} \, S^2 = \frac{1}{n}\sum_{1}^{n}(X_i - \bar{X})^2] \rightarrow \sigma^2
+$$ $$
+plim_{n \rightarrow \infty} \, s^2 = \frac{1}{n-1}\sum_{1}^{n}(X_i - \bar{X})^2] \rightarrow \sigma^2
+$$
+
+## Law of Large Numbers
+
+The **Law of Large Numbers** states that the average of an experiment
+will converge to the expected value as more trials of the experiment are
+performed.
+
+Let $\bar{x_n}$ be the sample average across $n$ trials.
+
+Let $E[x] = \mu$.
+
+The law of large numbers states that the sample average converges in
+probability towards the expected value or:
+
+$$\bar{x_n} \rightarrow^P \mu$$
+
+$$lim_{n \rightarrow \infty} P(|\bar{x}_n - \mu| < \epsilon) = 1, \quad \epsilon >0 $$
+
+The strong law of large numbers states that the sample average converges
+almost surely to the expected value or:
+
+$$\bar{x} \rightarrow^{a.s} \mu$$
+
+$$lim_{n \rightarrow \infty} \, P(\bar{x}_n = \mu) = 1$$
+
+## Uniform Example of LLN
+
+We can demonstrate the large of large numbers of a uniform distribution.
+
+The expected value of a uniform distribution is
+
+$$E[x] = (a + b) / 2$$
+
+Given $a = 1$ and $b = 10$ then
+
+$$E[x] = (1 + 10)/2 = 5.5$$
+
+The code below does the following
+
+-   Constructs a population of 100,000 random observations from a
+    uniform distribution
+
+-   Establishes two vectors, one for the number of trials, one for the
+    sample averages
+
+-   Performs a loop
+
+-   Inside the loop, the trial number is equal to the loop counter
+
+-   Takes a sample of size *i* and estimates the sample average
+
+-   Places the vectors of trial numbers and averages in a tibble
+
+-   Constructs a plot
+
+As the sample size increases, the sample averages tend toward the
+population mean.
+
+```{r, warnings = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+population <- runif(100000, min = 1, max = 10)
+
+ntrials = 10000
+trials <- rep(0,ntrials)
+avgs <- rep(0,ntrials)
+
+for(i in 1:ntrials){
+  trials[i] <- i
+  avgs[i] <- mean(sample(population, i, replace = FALSE))
+}
+
+mean_frame <- tibble(trials,avgs)
+
+ggplot(mean_frame,
+       aes(x = trials,
+       y = avgs)) +
+geom_point() +
+theme_minimal() +
+labs(title = "Large of Large Numbers Simulation",
+     subtitle = "Population of 100,000",
+     y     = "Sample Average",
+     x     = "Trial Number")
+```
+
+## Normal Example of LLN
+
+We can demonstrate the Law of Large Numbers using data drawn from a
+normal distribution.
+
+We know the sample average is equal to:
+
+$$
+\bar{X} = \frac{1}{n}\sum_{i=1}^n x_i
+$$
+
+We also know that the sample average estimator is unbiased and
+consistent:
+
+$$
+E[\bar{X}] = \mu
+$$
+
+$$
+plim_{n \rightarrow \infty} \, \bar{X} \rightarrow \mu
+$$
+
+We use the code chunk from the last example as a starting point. Here we
+modify the population so that it is drawn from a normal distribution and
+we also create a table to illustrate the differences between the first
+five observations and the last five observations.
+
+```{r, warnings = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+population <- rnorm(100000, mean = 25, sd = 10)
+
+ntrials = 10000
+trials <- rep(0,ntrials)
+avgs <- rep(0,ntrials)
+
+for(i in 1:ntrials){
+  trials[i] <- i
+  avgs[i] <- mean(sample(population, i, replace = FALSE))
+}
+
+mean_frame <- tibble(trials,avgs)
+
+mean_frame_2 <- mean_frame %>%
+  filter(trials <= 5 | trials > ntrials - 5)
+
+ggplot(mean_frame,
+       aes(x = trials,
+       y = avgs)) +
+geom_point() +
+theme_minimal() +
+labs(title = "Large of Large Numbers Simulation",
+     subtitle = "Population of 100,000",
+     y     = "Sample Average",
+     x     = "Trial Number")
+
+kable(mean_frame_2,
+      align  = 'c',
+      digits = 3,
+      col.names = c('Obsveration','Sample average')) %>%
+kable_styling()
+
+
+```
+
+## Central Limit Theorem
+
+The central limit theorem states that when independent random variables
+are summed, that, in many situations, the normalized sum tends toward a
+normal distribution even if the original variables were not normally
+distributed.
+
+Let $\{x_1, x_2, \dots, x_n\}$ be a random sample of size $n$.
+
+Let $\{x_1, x_2, \dots, x_n\}$ be a sequence identically and
+independently distributed random variables.
+
+Let $\{x_1, x_2, \dots, x_n\}$ have mean $\mu$ and finite variance
+$\sigma^2$.
+
+$$E[x_1] = E[x_2] = \dots = E[x_n] = \mu$$
+
+$$var(x_1) = var(x_2) = \dots = var(x_n) = \sigma^2$$
+
+Thus, by the law of large numbers, the sample average of these random
+variables converges almost surely (and in probability) to the expected
+value $\mu$ as $n \rightarrow \infty$.
+
+## Central Limit Theorem
+
+Suppose $\{x_1, x_2, \dots, x_n\}$ is a sequence of i.i.d. random
+variables with $E[x_i] = \mu$ and $var[x_i] = \sigma^2$. Then, as $n$
+approaches infinity, the random variables $\sqrt{n} \, (\bar{x} - \mu)$
+converge in distribution to normal $N \sim (0, \sigma^2)$.
+
+$$lim_{n \rightarrow \infty} \, \sqrt{n}( \bar{x} - \mu) \rightarrow^d N(0,\sigma^2)$$
+
+If $\sigma >0$, converge in distribution means that the cumulative
+distribution functions of $\sqrt{n} \, (\bar{x} - \mu)$ converge
+pointwise to the CDF of $N(0,\sigma^2)$ for every real number $z$.
+
+Therefore, it can be shown the sample average $\bar{x}$ is such that
+
+$$lim_{n \rightarrow \infty} \, \frac{\sqrt{n}}{\sigma}( \bar{x} - \mu) \rightarrow^d N(0,1)$$
+
+In other words, if a random sample of size $n$ is selected from any
+population with mean $\mu$ and standard deviation $\sigma$, then when
+$n$ is sufficiently large
+
+$$\bar{x} \sim N(\mu, \sigma/\sqrt{n})$$
+
+## Sampling Distributions
+
+The sampling distribution of the sample average estimator is the
+probability distribution of all possible values of the sample average
+estimator.
+
+Recall that a collection of random variables is identically and
+independently distributed if each random variable has the same
+probability distribution as the others and all are mutually independent.
+
+First, assume that the random variables are identically and
+independently distributed or:
+
+$$
+x_1, x_2, \dots, x_n \sim i.i.d
+$$
+
+***Note that we have not assumed the underlying distribution, merely
+that the distribution of each random variable is the same.***
+
+Second, assume that the mean and variance of each random variable is:
+
+$$
+\mu_i, \quad \sigma_i^2 \quad \forall i
+$$
+
+Third, the expected value of the sample averages is:
+
+$$E(\bar{x}) = E(\frac{1}{n} \sum_{i=1}^n x_i) = \frac{1}{n} \, E(\sum_{i=1}^n x_i) = \frac{1}{n} \, \sum_{i=1}^n E(x_i)$$
+
+Given that $x_i$ are i.i.d. with mean $\mu_x$, then:
+
+$$E(\bar{x}) =  \frac{1}{n} \, \sum_{i=1}^n E(x_i) =  \frac{1}{n} \, \sum_{i=1}^n \mu_x = \frac{1}{n} \times n \times \mu_x = \mu_x$$
+
+The variance of the sample averages is:
+
+$$var(\bar{x}) = var(\frac{1}{n} \sum_{i=1}^n x_i)$$
+
+$$var(\bar{x}) = \frac{1}{n^2} \sum_{i = 1}^{n} \, var(x_i) + \frac{1}{n^2} \sum_{i=1}^{n} \sum_{j = 1}^{n} cov(x_i, x_j) \quad \forall i \ne j$$
+
+Since the covariance between any dissimilar random variables is assumed
+to be zero, the variance of the sample averages is:
+
+$$var(\bar{x}) = \frac{1}{n^2} \sum_{i = 1}^{n} \, var(x_i) = \frac{1}{n^2} \sum_{i = 1}^{n} \, \sigma_x^2 = \frac{1}{n^2} \times n \times \sigma_x^2 = \frac{\sigma_x^2}{n}$$The
+variance of the sample average estimator is decreasing in the number of
+observations.
+
+**In other words, as the number of observations in repeated sampling
+increases, the variance of the distribution of the sample average
+estimator declines relatively to distributions with smaller sample
+sizes.**.
+
+## CLT Example
+
+In the following code below, we demonstrate the Law of Large Numbers and
+the Central Limit Theorem.
+
+We would expect that, given repeated sampling, that the sample average
+estimates would be, on average equal to the population mean.
+
+We would also expect that, given repeated sampling, that as sample size
+increased, the variance of the distribution of sample average estimates
+would decrease.
+
+***We observe that as sample size increases, the variance of the
+distribution of the sample average estimates declines. Each of the
+distributions is centered at the population mean.***
+
+The code completes the following tasks:
+
+-   The population of 100,000 observations is drawn from a standard
+    normal distribution
+
+-   Sample sizes are equal to 1, 10, 100, and 1000
+
+-   The number of repetitions is 1,000
+
+-   In other words, we will take 1,000 samples of size 1, then 1,000
+    samples of size 10 and so on
+
+-   We can two lists in which we can populate data
+
+-   We have two loops. The outer loop loops over sample sizes. The inner
+    loop over repetitions.
+
+-   In the inner loop, the sample size is set by the outer loop index
+    (1, 10, 100, 1000)
+
+-   The sample average is estimated
+
+-   The sample size is assigned
+
+-   A data frame is created containing sample average and sample size
+
+-   The data frame is put into a list indexed by the inner loop counter
+
+-   After the inner loop completes, all the data frames are put in a
+    loop indexed by the outer loop
+
+-   After the outer loop completes, all the data frames are row bound
+
+-   The plot illustrates the measure of central tendency and variance of
+    each distribution
+
+```{r, warnings = FALSE, message = FALSE}
+
+rm(list = ls())
+
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+
+population <- tibble(x = rnorm(100000, mean = 0, sd = 1))
+sample_size <- c(1, 10, 100, 1000)
+nreps <- 1000
+
+list_1 <- list()
+list_2 <- list()
+
+for(j in sample_size){
+
+for(i in 1:nreps){
+  samp <- slice_sample(population, n = j)
+  samp_avg <- colMeans(samp)
+  sample_size <- as.numeric(j)
+  temp <- data.frame(samp_avg, sample_size)
+  list_1[[i]] <- temp
+
+}
+  list_2[[j]] <- bind_rows(list_1)
+}
+
+avg_final <- bind_rows(list_2)
+
+ggplot(data = avg_final,
+       aes(x = samp_avg,
+           fill = as.character(sample_size))) +
+geom_density(stat = "density", alpha = 0.5, linewidth = 0.1) +
+theme(legend.position ="bottom",
+      legend.title    = element_blank(),
+      plot.caption    = element_text(hjust=0),
+      axis.title.x    = element_text(face = "bold"), 
+      axis.text.x     = element_text(face = "bold"),
+      axis.text.y     = element_text(face = "bold"),
+      axis.title.y    = element_text(face="bold")) +
+labs(x = "x",
+     y = "Density",
+     title = "Distribution of Sample Averages",
+     subtitle = "True Mean = 0")
+  
+```

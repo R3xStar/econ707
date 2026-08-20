@@ -1,0 +1,506 @@
+---
+title: "Normal Distributions"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: right
+    self-contained: false     # must be false when using webr
+urlcolor: blue
+filters:
+  - webr
+execute:
+  webR: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, echo = FALSE, message = FALSE}
+
+library(dplyr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra, quietly = TRUE)
+library(tidyquant, quietly = TRUE)
+
+```
+
+## Normal Probability Distribution
+
+The **normal** or **Gaussian** probability distribution is one (if not
+the one) of the most widely used probability distributions in
+statistics.
+
+Why is the normal so useful?
+
+*According to the Central Limit Theorem, the average of a random
+variable with finite mean and variance is a random variable whose
+distribution converges to a normal distribution as the number of samples
+increases.*
+
+A continuous random variable $X$ with mean $\mu$ and variance $\sigma^2$
+is said to be a **normal** random variable if its PDF is given by:
+
+$$f(x) = \frac{1}{\sigma \sqrt{2 \pi}} \, e^{-\frac{1}{2} (\frac{x - \mu}{\sigma})^2}$$
+
+A continuous random variable $x$ is said to be a **standard normal**
+random variable if $\mu = 1$ and $\sigma^2 = 1$, shown as
+$x \sim N(0,1)$ and its PDF is given by:
+
+$$f(x) = \frac{1}{\sqrt{2 \pi}} \, e^{-\frac{x^2}{2}}$$
+
+## Expected Value
+
+The expected value of a normally distributed random variable given
+
+$$X \sim N(0,1)$$
+
+$$E[X] = \int_{-\infty}^{\infty} \, x \, f(x) \, dx$$
+
+$$E[X] = \int_{-\infty}^{\infty} \, x \, \frac{1}{\sqrt{2 \pi}} \, e^{-\frac{x^2}{2}} \, dx$$
+
+$$E[X] =\frac{1}{\sqrt{2 \pi}} \, \int_{-\infty}^{\infty} \, x  \, e^{-\frac{x^2}{2}} \, dx$$
+
+Since $d(-\frac{x^2}{2})=-xdx$ then
+
+$$E[X] =\frac{1}{\sqrt{2 \pi}} \, \int_{-\infty}^{\infty} \, e^{-\frac{x^2}{2}} \, d(-\frac{x^2}{2})$$
+
+$$E[X] =\frac{1}{\sqrt{2 \pi}} \,  [e^{-\frac{x^2}{2}}]_{-\infty}^{\infty} = 0$$
+
+## Variance of a Standard Normal
+
+To find the variance of the standard normal, note that
+
+$$var(X) = E[X^2] - (E[X])^2 = E[X^2] = \int_{-\infty}^{\infty} \, x^2 \, f(x) \, dx$$
+
+$$var(X) = \frac{1}{\sqrt{2 \pi}} \, \int_{-\infty}^{\infty} \, x^2 \,  \, e^{-\frac{x^2}{2}} \, dx$$
+
+Since $d(-\frac{x^2}{2})=-xdx$ then
+
+$$var[X] = \frac{1}{\sqrt{2 \pi}} \, [-x  e^{-\frac{x^2}{2}} ]_{-\infty}^{\infty} + \frac{1}{\sqrt{2 \pi}} \,
+\int_{-\infty}^{\infty} \, e^{-\frac{x^2}{2}} \, dx$$
+
+$$var[X] = \int_{-\infty}^{\infty} \, \frac{1}{\sqrt{2 \pi}} \,  \, e^{-\frac{x^2}{2}} \, dx = 1$$
+
+The variance of the standard normal probability distribution is equal to
+1 because it is the equal to the integration of the standard normal PDF
+from $-\infty$ to $\infty$.
+
+Thus, we have shown that if $X \sim N(0,1)$ that $E[X] = 0$ and
+$var(X) = 1$.
+
+## CDF of Standard Normal
+
+To find the CDF of the standard normal, we would need to integrate the
+PDF of the standard normal or
+
+$$F_X(x) = \int_{-\infty}^{x} \, \frac{1}{\sqrt{2 \pi}} \,  \, e^{-\frac{x^2}{2}} \, dx$$
+
+However, since this integral does not have a closed-form solution, this
+cannot be done and the values of the CDF are available through tables
+and software.
+
+The CDF of the standard normal is denoted with the $\Phi$ function or:
+
+$$\Phi(x) = P(Z \le x) = \frac{1}{\sqrt{2 \pi}} \, \int_{-\infty}^{x} \,   \, e^{-\frac{x^2}{2}} \, dx$$
+
+Where $lim_{x \rightarrow \infty} \Phi(x) = 1$ and
+$lim_{x \rightarrow -\infty} \Phi(x) = 0$
+
+-   Where $\Phi(0) = 1/2$
+
+-   Where $\Phi(-x) = 1 - \Phi(x) \quad \forall x \, \in \,\mathbb{R}$
+
+## Normal Plot
+
+We can use the **dnorm** function to generate probabilities that are
+then graphed to provide a visual representation of the normal
+distribution.
+
+The **stat_function** is part of **ggplot2** and allows use to
+superimpose a function on top of an existing plot.
+
+Here we generate 600 observations observations that are normally
+distributed using the **rnorm** function.
+
+We then generate the density plot using for a normal distribution with
+$\mu = 500$ and $\sigma = 100$.
+
+```{r, fig.height=4, fig.width=4}
+
+rm(list = ls())
+
+set.seed(2525)
+
+df_norm <- tibble(x = rnorm(600, mean = 500, sd = 100))
+
+ggplot(data = df_norm, 
+       aes(x),
+       size  = 1.2) +
+geom_density(linewidth = 1.2,
+             color = "dark blue") +
+stat_function(fun  = dnorm,
+              args  = list(mean = 500, sd = 100),
+              linewidth  = 1.2,
+              color = "red") +
+theme_minimal() +
+labs(x = "x",
+     y = "Density")
+
+```
+
+## PDF and CDF Examples
+
+Assume that IQ scores are normally distributed with a mean of 100 and a
+standard deviation of 15.
+
+-   What is the percentage of people with an IQ score less than or equal
+    to 125?
+
+-   What is the percentage of people with an IQ score greater than or
+    equal 110?
+
+-   What is the percentage of people with an IQ score between 110 and
+    125?
+
+-   What IQ score separates the lower 25% from the others or $P_{25}$?
+
+-   What IQ score separates the top 10% from the others or $P_{90}$?
+
+```{r}
+
+rm(list = ls())
+
+mean_iq <- 100
+sd_iq <- 15
+
+normal_1 <- tibble(p_le_125  <- pnorm(125, mean = 100, sd = 15),
+                   p_ge_110  <- pnorm(110, mean = 100, sd = 15, 
+                                  lower.tail = FALSE),
+                   p_110_125 <- pnorm(125,100,15) - pnorm(110, 100, 15),
+                   q_25      <- qnorm(.25,100,15),
+                   q_10      <- qnorm(.90,100,15))
+
+
+kable(normal_1,
+      align     = 'c',
+      digits    = 3,
+      caption   = 'Normal Distribution Example',
+      col.names = c("P(X <= 125)", "P(X >= 110)", 
+                    "P(110 <= X <= 125)",
+                    "P(0.25)", "P(0.90)")) %>%
+kable_styling(font_size = 12)
+
+
+```
+
+## Z-Score Example
+
+SAT scores are distributed normally with a mean score of 1150 and a
+standard deviation of 150 points.
+
+What is the probability of an SAT score exceeding 1380?
+
+We can tackle this several ways.
+
+First, we can estimate the Z-score for 1380 given $\mu = 1150$ and
+$\sigma = 150$ or:
+
+$$
+Z = \frac{x - \mu}{\sigma} = \frac{1380 - 1150}{150} = 1.53
+$$
+
+We can use the **pnorm** function in area with **lower.tail = TRUE** to
+estimate, for a standard normal distribution, the probability that Z is
+less than or equal to 1.53. We can also estimate the probability of Z
+being greater than 1.53 using the **lower.tail = FALSE** option.
+
+$$
+P(Z \le 1.53) = 0.937 
+$$
+
+$$
+P(Z > 1.53) = 1 - P(Z \le 1.53) = 1 - 0.937 - 0.063
+$$
+
+The code chunk below does the following:
+
+-   Declares the mean, standard deviation, and value of interest for $x$
+
+-   Estimates the Z-score for $x$ given $\mu$ and $\sigma$
+
+-   Estimates $P(Z)$
+
+-   Estimates $1-P(Z)$ which is equivalent to $P(X>1380)$
+
+-   Estimates $1- P(Z)$ using the **lower.tail = FALSE** option
+
+-   Estimates $P(X > 1380)$ directly
+
+The code chunk then creates a graphic that corresponds to the normal
+distribution with a mean of 1150 and a standard deviation of 150 and
+identifies the region where $P(X >1380)$.
+
+-   Create a tibble where $X$ is a sequence of numbers, where the
+    sequence of numbers is from 4 standard deviations to the left of the
+    mean to 4 standard deviations to the right of the mean
+
+-   Using $X$, create $Y$ where $Y$ is equal to $P(X = x)$
+
+-   Create a tibble which only has values where $X \ge 1380$
+
+-   Plots the resulting normal distribution
+
+-   Plots the shaded area representing $P(X > 1380)$
+
+```{r, message = FALSE, warning = FALSE, results = 'hold'}
+
+rm(list = ls())
+
+library(dplyr)
+library(kableExtra)
+
+mu = 1150
+sigma = 150
+x = 1380
+
+norm <- tibble(z = (x-mu)/sigma,
+               p_1 <- pnorm(z, 0, 1),
+               p_2 <- 1-pnorm(z, 0, 1),
+               p_3 <- pnorm(z, 0, 1, lower.tail = FALSE),
+               p_4 <- pnorm(x, mu, sigma, lower.tail = FALSE))
+
+kable(norm,
+      align  = 'c',
+      digits = 4,
+      col.names = c('Z', 'P(Z)', '1-P(Z)', '1-P(Z)', 'P(X > 1380')) %>%
+kable_classic()
+               
+
+# Create data for the normal curve
+curve_data <- tibble(X = seq(mu - 4 * sigma, 
+                             mu + 4 * sigma, length.out = 1000),
+                     Y = dnorm(X, mean = mu, sd = sigma))
+
+# Data for shaded region (right tail)
+shade_data <- curve_data %>%
+              filter(X >= x)
+
+# Plot
+ggplot(curve_data, 
+       aes(x = X, 
+           y = Y)) +
+geom_line(linewidth = 1, color = "steelblue") +
+geom_area(data = shade_data, 
+          aes(x = X, 
+              y = Y),
+          fill = "steelblue", 
+          alpha = 0.4) +
+geom_vline(xintercept = x, 
+           linetype = "dashed", 
+           color = "red") +
+annotate("text", 
+         x = x + 40, 
+         y = 0.001,
+         label = paste0("P(X > 1380) = ",
+         round(pnorm(x, mu, sigma, lower.tail = FALSE), 4)),
+         hjust = 0, 
+         color = "black") +
+labs(title = "Normal Distribution with Shaded Tail Where P(X>1380)",
+     x = "X",
+     y = "Density") +
+theme_minimal(base_size = 12)
+
+```
+
+## PDF Example
+
+For a given random variable **x**, the **dnorm** function returns the
+value of the probability density function (PDF) of the normal
+distribution with mean $\mu$ and standard deviation $\sigma$.
+
+We can generate a sequence of numbers from 1 to 100 and generate the
+value of the PDF for each of these numbers given that we have assumed
+that $\mu = 50$ and $\sigma = 3.5$. We also generate a second set of
+probabilities, however, these are using $\mu = 50$ and $\sigma = 1.5$.
+
+We can also use **stat_function** to compute and draw a function of a
+continuous curve. Here we compare the distribution where $\mu = 50$ and
+$\sigma = 3.5$ with $\mu =45$ and $\sigma = 4.5$.
+
+```{webr-r}
+
+rm(list = ls())
+set.seed(1234)
+
+mu = 50
+sigma1 = 3.5
+sigma2 = 1.5
+
+df_1 <- tibble(x = seq(1,100, by = 0.01),
+               y1 = dnorm(x, mu, sigma1),
+               y2 = dnorm(x, mu, sigma2))
+               
+ggplot() +
+  geom_line(data = df_1, aes(x = x, y = y1)) +
+  geom_line(data = df_1, aes(x = x, y = y2, color = 'red')) +
+theme_minimal() +
+theme(legend.position = "") +
+labs(x = "X",
+     y = "P(X)")
+
+ggplot() +
+    geom_line(data = df_1, aes(x = x, y = y2, color = 'red')) +
+    stat_function(fun   = dnorm, 
+                  args  = list(mean = 50, sd = 3.5),
+                  color = "blue") +
+    stat_function(fun   = dnorm, 
+                  args  = list(mean = 50, sd = 4.5),
+                  color = "purple") +
+theme_minimal() +
+theme(legend.position = "") +
+labs(x = "X",
+     y = "P(X)")
+
+```
+
+## CDF Example
+
+The cumulative density function (CDF) of the normal distribution is used
+to answer such questions as $P(X \le x)$ and $P(X > x)$ and can be
+thought of as the area underneath the normal distribution curve at $x$.
+
+For example, if the mean height of students at a school is 68 inches and
+the standard deviation is 4.25 inches, what is the probability of
+observing a student with a height greater than 75 inches?
+
+$$P(X > 75) = 1 - P(X \le 75)$$
+
+The probability of observing a student with a height greater than 75
+inches is 0.05 (or 95% of students have heights 75 inches and less).
+
+```{webr-r}
+
+rm(list = ls())
+
+mu = 68
+sd = 4.25
+
+df_1 <- tibble(p_x_g_75a =  1-pnorm(75, 68, 4.25),
+               p_x_g_75b = pnorm(75, 68, 4.25, lower.tail = FALSE))
+
+kable(df_1,
+      align = 'c',
+      col.names = c('1-P(X <= 75)',
+                    'P(X > 75)'),
+      digits = 4) 
+```
+
+Let's say we want to find $P(a \le x \le b)$ with respect to a normal
+distribution. Here again we can use the **pnorm** function to estimate
+this probability.
+
+Using the previous example, what is the probability of observing a
+student with a height between 63 and 67 inches given that $\mu = 68$ and
+$\sigma = 4.25$
+
+```{webr-r}
+
+mu = 68
+sd = 4.25
+
+df_2 <- tibble(p_le_63  = pnorm(63, 68, 4.25),
+               p_le_67  = pnorm(67, 68, 4.25),
+               p_63_67  = pnorm(67, 68, 4.25)-pnorm(63, 68, 4.25))
+
+kable(df_2,
+      align = 'c',
+      col.names = c('P(X <= 63)',
+                    'P(X <= 67)',
+                    'P(63 <= X <= 67)'),
+      digits = 4) 
+
+```
+
+## Shading part of a curve
+
+In the code below, we create a wrapper function. We first set the lower
+and upper bounds (defined in the previous example). The function uses
+values of **x** and the PDF of a normal distribution where $\mu = 68$
+and $\sigma = 4.25$.
+
+When **x** is below the lower bound, the function returns "NA" values.
+When is between the bounds, it evaluates **dnorm(x, mu, sigma)** and
+returns the value of the PDF at **x** and assigns the value to **y**.
+
+We can then use the stat_function argument to plot the normal
+distribution and then use stat_function again to map an area that is
+filled in.
+
+Note that the *dnorm_limit* function will return values that correspond
+to the PDF of the normal within the lower and upper bound and it will
+have "NA" values outside the bounds. So, you end up plotting a shaded
+area that corresponds to the previous example.
+
+```{r}
+
+mu = 68
+sd = 4.25
+
+#Create a limiting function
+
+lower_bound <- 63
+upper_bound <- 67
+
+dnorm_limit <- function(x) {
+    y <- dnorm(x, mean = mu, sd = sd)
+    y[x < lower_bound  |  x > upper_bound] <- NA
+    return(y)
+}
+
+# ggplot() with dummy data
+ 
+ggplot(data.frame(x = c(50, 90)), 
+       aes(x = x)) +
+  stat_function(fun = dnorm, args = list(mean = mu, sd = sd)) +
+  stat_function(fun = dnorm_limit, geom = "area", fill = "blue", alpha = 0.2) +
+scale_y_continuous(labels   = scales::label_number(a=0.01),
+                   limits   = c(0,0.1),
+                   n.breaks = 10 ) +
+theme_minimal() +
+theme(legend.position = "") +
+labs(x = "X",
+     y = "P(X)")
+
+```
+
+## Inverse CDF Example
+
+The inverse cumulative density function gives the value associated with
+a specific cumulative probability. Use the inverse CDF to determine the
+value of the variable associated with a specific probability.
+
+For example, we want to know the 90th percentile in height in the
+previous example, that is,
+
+$$P(X \le x) = .9$$
+
+It turns out the answer is 73.447.
+
+```{webr-r}
+
+value = round(qnorm(.9, 68, 4.25),3)
+
+ggplot(data.frame(x = c(50, 90)), 
+       aes(x = x)) +
+stat_function(fun = pnorm, args = list(mean = mu, sd = sd)) +
+geom_vline(xintercept = qnorm(0.90, mean = 68, sd = 4.25),
+           color = 'red') +
+geom_hline(yintercept = pnorm(73.447, mean = 68, sd = 4.25),
+           color = 'blue')+
+theme_minimal() +
+theme(legend.position = "") +
+labs(x = "X",
+     y = "CDF(X)")
+
+```
